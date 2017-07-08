@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_checkin
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,34 +12,46 @@ defined('_JEXEC') or die;
 /**
  * Checkin Controller
  *
- * @package     Joomla.Administrator
- * @subpackage  com_checkin
- * @since       1.6
+ * @since  1.6
  */
 class CheckinController extends JControllerLegacy
 {
-	public function display($cachable = false, $urlparams = false)
+	/**
+	 * Method to display a view.
+	 *
+	 * @param   boolean  $cachable   If true, the view output will be cached
+	 * @param   array    $urlparams  An array of safe URL parameters and their variable types, for valid values see {@link JFilterInput::clean()}.
+	 *
+	 * @return  CheckinController  A JControllerLegacy object to support chaining.
+	 */
+	public function display($cachable = false, $urlparams = array())
 	{
 		// Load the submenu.
 		$this->addSubmenu($this->input->getWord('option', 'com_checkin'));
 
-		parent::display();
-
-		return $this;
+		return parent::display();
 	}
 
+	/**
+	 * Check in a list of items.
+	 *
+	 * @return  void
+	 */
 	public function checkin()
 	{
 		// Check for request forgeries
-		JSession::checkToken() or jexit(JText::_('JInvalid_Token'));
+		JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
 
 		$ids = $this->input->get('cid', array(), 'array');
 
-		if (empty($ids)) {
+		if (empty($ids))
+		{
 			JError::raiseWarning(500, JText::_('JLIB_HTML_PLEASE_MAKE_A_SELECTION_FROM_THE_LIST'));
 		}
-		else {
+		else
+		{
 			// Get the model.
+			/** @var CheckinModelCheckin $model */
 			$model = $this->getModel();
 
 			// Checked in the items.
@@ -52,10 +64,11 @@ class CheckinController extends JControllerLegacy
 	/**
 	 * Configure the Linkbar.
 	 *
-	 * @param	string	The name of the active view.
+	 * @param   string  $vName  The name of the active view.
 	 *
-	 * @return	void
-	 * @since	1.6
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	protected function addSubmenu($vName)
 	{
@@ -75,7 +88,5 @@ class CheckinController extends JControllerLegacy
 			'index.php?option=com_cache&view=purge',
 			$vName == 'purge'
 		);
-
 	}
-
 }

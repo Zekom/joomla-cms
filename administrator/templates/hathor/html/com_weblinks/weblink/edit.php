@@ -3,25 +3,29 @@
  * @package     Joomla.Administrator
  * @subpackage  Template.hathor
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
 JHtml::addIncludePath(JPATH_COMPONENT.'/helpers/html');
-JHtml::_('behavior.tooltip');
-JHtml::_('behavior.formvalidation');
-?>
-<script type="text/javascript">
+
+$saveHistory = $this->state->get('params')->get('save_history', 0);
+
+JHtml::_('behavior.formvalidator');
+
+JFactory::getDocument()->addScriptDeclaration("
 	Joomla.submitbutton = function(task)
 	{
-		if (task == 'weblink.cancel' || document.formvalidator.isValid(document.id('weblink-form'))) {
-			<?php echo $this->form->getField('description')->save(); ?>
+		if (task == 'weblink.cancel' || document.formvalidator.isValid(document.id('weblink-form')))
+		{
+			" . $this->form->getField('description')->save() . "
 			Joomla.submitform(task, document.getElementById('weblink-form'));
 		}
 	}
-</script>
+");
+?>
 <div class="weblink-edit">
 
 <form action="<?php echo JRoute::_('index.php?option=com_weblinks&layout=edit&id='.(int) $this->item->id); ?>" method="post" name="adminForm" id="weblink-form" class="form-validate">
@@ -52,6 +56,18 @@ JHtml::_('behavior.formvalidation');
 
 				<li><?php echo $this->form->getLabel('language'); ?>
 				<?php echo $this->form->getInput('language'); ?></li>
+
+				<!-- Tag field -->
+				<li><?php echo $this->form->getLabel('tags'); ?>
+					<div class="is-tagbox">
+						<?php echo $this->form->getInput('tags'); ?>
+					</div>
+				</li>
+
+				<?php if ($saveHistory) : ?>
+					<li><?php echo $this->form->getLabel('version_note'); ?>
+					<?php echo $this->form->getInput('version_note'); ?></li>
+				<?php endif; ?>
 
 				<li><?php echo $this->form->getLabel('id'); ?>
 				<?php echo $this->form->getInput('id'); ?></li>
@@ -107,7 +123,11 @@ JHtml::_('behavior.formvalidation');
 
 		<?php echo $this->loadTemplate('params'); ?>
 
-		<?php echo $this->loadTemplate('metadata'); ?>
+		<?php echo JHtml::_('sliders.panel', JText::_('JGLOBAL_FIELDSET_METADATA_OPTIONS'), 'meta-options'); ?>
+		<fieldset class="panelform">
+		<legend class="element-invisible"><?php echo JText::_('JGLOBAL_FIELDSET_METADATA_OPTIONS'); ?></legend>
+			<?php echo $this->loadTemplate('metadata'); ?>
+		</fieldset>
 
 		<?php echo JHtml::_('sliders.end'); ?>
 

@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Client
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Client helper class
  *
- * @package     Joomla.Platform
- * @subpackage  Client
- * @since       11.1
+ * @since  11.1
  */
 class JClientHelper
 {
@@ -50,7 +48,8 @@ class JClientHelper
 						'port' => $config->get('ftp_port'),
 						'user' => $config->get('ftp_user'),
 						'pass' => $config->get('ftp_pass'),
-						'root' => $config->get('ftp_root'));
+						'root' => $config->get('ftp_root'),
+					);
 					break;
 
 				default:
@@ -113,6 +112,7 @@ class JClientHelper
 						{
 							$return = true;
 						}
+
 						$ftp->quit();
 					}
 				}
@@ -179,6 +179,7 @@ class JClientHelper
 			$session = JFactory::getSession();
 			$user = $session->get($client . '.user', null, 'JClientHelper');
 			$pass = $session->get($client . '.pass', null, 'JClientHelper');
+
 			if ($user != '' && $pass != '')
 			{
 				$return = true;
@@ -208,6 +209,7 @@ class JClientHelper
 		$input = JFactory::getApplication()->input;
 		$user = $input->post->getString('username', null);
 		$pass = $input->post->getString('password', null);
+
 		if ($user != '' && $pass != '')
 		{
 			// Add credentials to the session
@@ -219,7 +221,7 @@ class JClientHelper
 			{
 				if (class_exists('JError'))
 				{
-					$return = JError::raiseWarning('SOME_ERROR_CODE', JText::_('JLIB_CLIENT_ERROR_HELPER_SETCREDENTIALSFROMREQUEST_FAILED'));
+					$return = JError::raiseWarning(500, JText::_('JLIB_CLIENT_ERROR_HELPER_SETCREDENTIALSFROMREQUEST_FAILED'));
 				}
 				else
 				{

@@ -3,19 +3,21 @@
  * @package     Joomla.Administrator
  * @subpackage  com_languages
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
 JHtml::addIncludePath(JPATH_COMPONENT.'/helpers/html');
-$client			= $this->state->get('filter.client') == 'site' ? JText::_('JSITE') : JText::_('JADMINISTRATOR');
-$language		= $this->state->get('filter.language');
-$listOrder	= $this->escape($this->state->get('list.ordering'));
-$listDirn		= $this->escape($this->state->get('list.direction')); ?>
+$client    = $this->state->get('filter.client') == 'site' ? JText::_('JSITE') : JText::_('JADMINISTRATOR');
+$language  = $this->state->get('filter.language');
+$listOrder = $this->escape($this->state->get('list.ordering'));
+$listDirn  = $this->escape($this->state->get('list.direction'));
+?>
+
 <form action="<?php echo JRoute::_('index.php?option=com_languages&view=overrides'); ?>" method="post" name="adminForm" id="adminForm">
-<?php if(!empty( $this->sidebar)): ?>
+<?php if (!empty( $this->sidebar)) : ?>
 	<div id="j-sidebar-container" class="span2">
 		<?php echo $this->sidebar; ?>
 	</div>
@@ -29,10 +31,10 @@ $listDirn		= $this->escape($this->state->get('list.direction')); ?>
 			<input type="text" name="filter_search" id="filter_search" value="<?php echo $this->escape($this->state->get('filter.search')); ?>" title="<?php echo JText::_('COM_LANGUAGES_VIEW_OVERRIDES_FILTER_SEARCH_DESC'); ?>" />
 
 			<button type="submit" class="btn"><?php echo JText::_('JSEARCH_FILTER_SUBMIT'); ?></button>
-			<button type="button" onclick="document.id('filter_search').value='';this.form.submit();"><?php echo JText::_('JSEARCH_FILTER_CLEAR'); ?></button>
+			<button type="button" onclick="document.getElementById('filter_search').value='';this.form.submit();"><?php echo JText::_('JSEARCH_FILTER_CLEAR'); ?></button>
 		</div>
 		<div class="filter-select fltrt">
-			<select name="filter_language_client" class="inputbox" onchange="this.form.submit()">
+			<select name="filter_language_client" onchange="this.form.submit()">
 				<?php echo JHtml::_('select.options', $this->languages, null, 'text', $this->state->get('filter.language_client')); ?>
 			</select>
 		</div>
@@ -58,14 +60,11 @@ $listDirn		= $this->escape($this->state->get('list.direction')); ?>
 				<th>
 					<?php echo JText::_('JCLIENT'); ?>
 				</th>
-				<th class="right" width="20">
-					<?php echo JText::_('COM_LANGUAGES_HEADING_NUM'); ?>
-				</th>
 			</tr>
 		</thead>
 		<tfoot>
 			<tr>
-				<td colspan="6">
+				<td colspan="5">
 					<?php echo $this->pagination->getListFooter(); ?>
 				</td>
 			</tr>
@@ -73,13 +72,13 @@ $listDirn		= $this->escape($this->state->get('list.direction')); ?>
 		<tbody>
 		<?php $canEdit = JFactory::getUser()->authorise('core.edit', 'com_languages');
 		$i = 0;
-		foreach($this->items as $key => $text): ?>
+		foreach ($this->items as $key => $text) : ?>
 			<tr class="row<?php echo $i % 2; ?>" id="overriderrow<?php echo $i; ?>">
 				<td class="center">
 					<?php echo JHtml::_('grid.id', $i, $key); ?>
 				</td>
 				<td>
-					<?php if ($canEdit): ?>
+					<?php if ($canEdit) : ?>
 						<a id="key[<?php	echo $this->escape($key); ?>]" href="<?php echo JRoute::_('index.php?option=com_languages&task=override.edit&id='.$key); ?>"><?php echo $this->escape($key); ?></a>
 					<?php else: ?>
 						<?php echo $this->escape($key); ?>
@@ -93,9 +92,6 @@ $listDirn		= $this->escape($this->state->get('list.direction')); ?>
 				</td>
 				<td class="center">
 					<?php echo $client; ?>
-				</td>
-				<td class="right">
-					<?php echo $this->pagination->getRowOffset($i); ?>
 				</td>
 			</tr>
 			<?php $i++;

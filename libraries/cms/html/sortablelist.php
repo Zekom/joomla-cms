@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  HTML
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * HTML utility class for creating a sortable table list
  *
- * @package     Joomla.Libraries
- * @subpackage  HTML
- * @since       3.0
+ * @since  3.0
  */
 abstract class JHtmlSortablelist
 {
@@ -37,38 +35,37 @@ abstract class JHtmlSortablelist
 	 * @return  void
 	 *
 	 * @since   3.0
+	 *
+	 * @throws  InvalidArgumentException
 	 */
-	public static function sortable($tableId, $formId, $sortDir = 'asc', $saveOrderingUrl, $proceedSaveOrderButton = true, $nestedList = false)
+	public static function sortable($tableId, $formId, $sortDir = 'asc', $saveOrderingUrl = null, $proceedSaveOrderButton = true, $nestedList = false)
 	{
 		// Only load once
-		if (isset(self::$loaded[__METHOD__]))
+		if (isset(static::$loaded[__METHOD__]))
 		{
 			return;
 		}
 
-		// Depends on jQuery UI
-		JHtml::_('jquery.ui', array('core', 'sortable'));
-
-		JHtml::script('jui/sortablelist.js', false, true);
-		JHtml::stylesheet('jui/sortablelist.css', false, true, false);
-
-		// Attach sortable to document
-		JFactory::getDocument()->addScriptDeclaration("
-			(function ($){
-				$(document).ready(function (){
-					var sortableList = new $.JSortableList('#" . $tableId . " tbody','" . $formId . "','" . $sortDir . "' , '" . $saveOrderingUrl . "','','" . $nestedList . "');
-				});
-			})(jQuery);
-			"
-		);
-
-		if ($proceedSaveOrderButton)
+		// Note: $i is required but has to be an optional argument in the function call due to argument order
+		if ($saveOrderingUrl === null)
 		{
-			self::_proceedSaveOrderButton();
+			throw new InvalidArgumentException('$saveOrderingUrl is a required argument in JHtmlSortablelist::sortable');
 		}
 
+		$displayData = array(
+			'tableId'                => $tableId,
+			'formId'                 => $formId,
+			'sortDir'                => $sortDir,
+			'saveOrderingUrl'        => $saveOrderingUrl,
+			'nestedList'             => $nestedList,
+			'proceedSaveOrderButton' => $proceedSaveOrderButton,
+		);
+
+		JLayoutHelper::render('joomla.html.sortablelist', $displayData);
+
 		// Set static array
-		self::$loaded[__METHOD__] = true;
+		static::$loaded[__METHOD__] = true;
+
 		return;
 	}
 
@@ -79,6 +76,8 @@ abstract class JHtmlSortablelist
 	 * @return  void
 	 *
 	 * @since   3.0
+	 *
+	 * @deprecated 4.0 The logic is merged in the JLayout file
 	 */
 	public static function _proceedSaveOrderButton()
 	{
@@ -88,18 +87,21 @@ abstract class JHtmlSortablelist
 					var saveOrderButton = $('.saveorder');
 					saveOrderButton.css({'opacity':'0.2', 'cursor':'default'}).attr('onclick','return false;');
 					var oldOrderingValue = '';
-					$('.text-area-order').focus(function () {
+					$('.text-area-order').focus(function ()
+					{
 						oldOrderingValue = $(this).attr('value');
 					})
 					.keyup(function (){
 						var newOrderingValue = $(this).attr('value');
-						if(oldOrderingValue != newOrderingValue) {
+						if (oldOrderingValue != newOrderingValue)
+						{
 							saveOrderButton.css({'opacity':'1', 'cursor':'pointer'}).removeAttr('onclick')
 						}
 					});
 				});
 			})(jQuery);"
 		);
+
 		return;
 	}
 }

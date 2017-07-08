@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Mail
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -15,9 +15,7 @@ defined('JPATH_PLATFORM') or die;
  *
  * TODO: Test these methods as the regex work is first run and not tested thoroughly
  *
- * @package     Joomla.Platform
- * @subpackage  Mail
- * @since       11.1
+ * @since  11.1
  */
 abstract class JMailHelper
 {
@@ -32,6 +30,8 @@ abstract class JMailHelper
 	 */
 	public static function cleanLine($value)
 	{
+		$value = JStringPunycode::emailToPunycode($value);
+
 		return trim(preg_replace('/(%0A|%0D|\n+|\r+)/i', '', $value));
 	}
 
@@ -61,7 +61,7 @@ abstract class JMailHelper
 	public static function cleanBody($body)
 	{
 		// Strip all email headers from a string
-		return preg_replace("/((From:|To:|Cc:|Bcc:|Subject:|Content-type:) ([\S]+))/", "", $body);
+		return preg_replace("/((From:|To:|Cc:|Bcc:|Subject:|Content-type:) ([\S]+))/", '', $body);
 	}
 
 	/**
@@ -75,7 +75,7 @@ abstract class JMailHelper
 	 */
 	public static function cleanSubject($subject)
 	{
-		return preg_replace("/((From:|To:|Cc:|Bcc:|Content-type:) ([\S]+))/", "", $subject);
+		return preg_replace("/((From:|To:|Cc:|Bcc:|Content-type:) ([\S]+))/", '', $subject);
 	}
 
 	/**
@@ -93,6 +93,7 @@ abstract class JMailHelper
 		{
 			return false;
 		}
+
 		return $address;
 	}
 
@@ -108,12 +109,13 @@ abstract class JMailHelper
 	public static function isEmailAddress($email)
 	{
 		// Split the email into a local and domain
-		$atIndex = strrpos($email, "@");
+		$atIndex = strrpos($email, '@');
 		$domain = substr($email, $atIndex + 1);
 		$local = substr($email, 0, $atIndex);
 
 		// Check Length of domain
 		$domainLen = strlen($domain);
+
 		if ($domainLen < 1 || $domainLen > 255)
 		{
 			return false;
@@ -121,18 +123,21 @@ abstract class JMailHelper
 
 		/*
 		 * Check the local address
-		 * We're a bit more conservative about what constitutes a "legal" address, that is, A-Za-z0-9!#$%&\'*+/=?^_`{|}~-
-		 * Also, the last character in local cannot be a period ('.')
+		 * We're a bit more conservative about what constitutes a "legal" address, that is, a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-
+		 * The first and last character in local cannot be a period ('.')
+		 * Also, period should not appear 2 or more times consecutively
 		 */
-		$allowed = 'A-Za-z0-9!#&*+=?_-';
+		$allowed = "a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-";
 		$regex = "/^[$allowed][\.$allowed]{0,63}$/";
-		if (!preg_match($regex, $local) || substr($local, -1) == '.')
+
+		if (!preg_match($regex, $local) || substr($local, -1) == '.' || $local[0] == '.' || preg_match('/\.\./', $local))
 		{
 			return false;
 		}
 
 		// No problem if the domain looks like an IP address, ish
 		$regex = '/^[0-9\.]+$/';
+
 		if (preg_match($regex, $domain))
 		{
 			return true;
@@ -140,16 +145,20 @@ abstract class JMailHelper
 
 		// Check Lengths
 		$localLen = strlen($local);
+
 		if ($localLen < 1 || $localLen > 64)
 		{
 			return false;
 		}
 
 		// Check the domain
-		$domain_array = explode(".", rtrim($domain, '.'));
-		$regex = '/^[A-Za-z0-9-]{0,63}$/';
+		$domain_array = explode('.', rtrim($domain, '.'));
+		$regex = '/^[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/';
+
 		foreach ($domain_array as $domain)
 		{
+			// Convert domain to punycode
+			$domain = JStringPunycode::toPunycode($domain);
 
 			// Must be something
 			if (!$domain)
@@ -171,6 +180,7 @@ abstract class JMailHelper
 
 			// Check for a dash at the end of the domain
 			$length = strlen($domain) - 1;
+
 			if (strpos($domain, '-', $length) === $length)
 			{
 				return false;

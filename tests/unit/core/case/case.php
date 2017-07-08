@@ -2,8 +2,8 @@
 /**
  * @package    Joomla.Test
  *
- * @copyright  Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license    GNU General Public License version 2 or later; see LICENSE
+ * @copyright  Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license    GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 /**
@@ -12,7 +12,7 @@
  * @package  Joomla.Test
  * @since    12.1
  */
-abstract class TestCase extends PHPUnit_Framework_TestCase
+abstract class TestCase extends \PHPUnit\Framework\TestCase
 {
 	/**
 	 * @var         array  The list of errors expected to be encountered during the test.
@@ -36,6 +36,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 		'application' => null,
 		'config' => null,
 		'dates' => null,
+		'database' => null,
 		'session' => null,
 		'language' => null,
 		'document' => null,
@@ -46,7 +47,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	/**
 	 * Receives the callback from JError and logs the required error information for the test.
 	 *
-	 * @param   JException	$error  The JException object from JError
+	 * @param   JException  $error  The JException object from JError
 	 *
 	 * @return  boolean  To not continue with JError processing
 	 *
@@ -61,8 +62,8 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	/**
 	 * Assigns mock callbacks to methods.
 	 *
-	 * @param   object  $mockObject  The mock object that the callbacks are being assigned to.
-	 * @param   array   $array       An array of methods names to mock with callbacks.
+	 * @param   PHPUnit_Framework_MockObject_MockObject  $mockObject  The mock object.
+	 * @param   array                                    $array       An array of methods names to mock with callbacks.
 	 * This method assumes that the mock callback is named {mock}{method name}.
 	 *
 	 * @return  void
@@ -85,16 +86,16 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 			}
 
 			$mockObject->expects($this->any())
-			->method($methodName)
-			->will($this->returnCallback($callback));
+				->method($methodName)
+				->willReturnCallback($callback);
 		}
 	}
 
 	/**
 	 * Assigns mock values to methods.
 	 *
-	 * @param   object  $mockObject  The mock object.
-	 * @param   array   $array       An associative array of methods to mock with return values:<br />
+	 * @param   PHPUnit_Framework_MockObject_MockObject  $mockObject  The mock object.
+	 * @param   array                                    $array       An associative array of methods to mock with return values:<br />
 	 * string (method name) => mixed (return value)
 	 *
 	 * @return  void
@@ -106,8 +107,8 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 		foreach ($array as $method => $return)
 		{
 			$mockObject->expects($this->any())
-			->method($method)
-			->will($this->returnValue($return));
+				->method($method)
+				->willReturn($return);
 		}
 	}
 
@@ -116,7 +117,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	 * If a test expects a JError to be raised, it should call this setExpectedError first
 	 * If you don't call this method first, the test will fail.
 	 *
-	 * @param   JException  $error
+	 * @param   JException  $error  The JException object from JError
 	 *
 	 * @return  JException
 	 *
@@ -140,6 +141,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 			if ($thisError)
 			{
 				unset($this->expectedErrors[$key]);
+
 				return $error;
 			}
 
@@ -166,6 +168,24 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	}
 
 	/**
+	 * Gets a mock CMS application object.
+	 *
+	 * @param   array  $options      A set of options to configure the mock.
+	 * @param   array  $constructor  An array containing constructor arguments to inject into the mock.
+	 *
+	 * @return  JApplicationCms
+	 *
+	 * @since   3.2
+	 */
+	public function getMockCmsApp($options = array(), $constructor = array())
+	{
+		// Attempt to load the real class first.
+		class_exists('JApplicationCms');
+
+		return TestMockApplicationCms::create($this, $options, $constructor);
+	}
+
+	/**
 	 * Gets a mock configuration object.
 	 *
 	 * @return  JConfig
@@ -180,16 +200,21 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	/**
 	 * Gets a mock database object.
 	 *
-	 * @return  JDatabase
+	 * @param   string  $driver        Optional driver to create a sub-class of JDatabaseDriver
+	 * @param   array   $extraMethods  An array of additional methods to add to the mock
+	 * @param   string  $nullDate      A null date string for the driver.
+	 * @param   string  $dateFormat    A date format for the driver.
+	 *
+	 * @return  JDatabaseDriver
 	 *
 	 * @since   12.1
 	 */
-	public function getMockDatabase()
+	public function getMockDatabase($driver = '', array $extraMethods = array(), $nullDate = '0000-00-00 00:00:00', $dateFormat = 'Y-m-d H:i:s')
 	{
 		// Attempt to load the real class first.
 		class_exists('JDatabaseDriver');
 
-		return TestMockDatabaseDriver::create($this);
+		return TestMockDatabaseDriver::create($this, $driver, $extraMethods, $nullDate, $dateFormat);
 	}
 
 	/**
@@ -222,6 +247,26 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 		class_exists('JDocument');
 
 		return TestMockDocument::create($this);
+	}
+
+	/**
+	 * Gets a mock input object.
+	 *
+	 * @param   array  $options  An associative array of options to configure the mock.
+	 *                           * methods => an array of additional methods to mock
+	 *
+	 * @return  JInput
+	 *
+	 * @since   3.4
+	 */
+	public function getMockInput(array $options = null)
+	{
+		// Attempt to load the real class first.
+		class_exists('JInput');
+
+		$mocker = new TestMockInput($this);
+
+		return $mocker->createInput($options);
 	}
 
 	/**
@@ -288,7 +333,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	 *
 	 * If passed without argument, the array is initialized if it hsn't been already
 	 *
-	 * @param   mixed  $error
+	 * @param   mixed  $error  The JException object to expect.
 	 *
 	 * @return  void
 	 *
@@ -326,7 +371,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	 */
 	protected function restoreErrorHandlers()
 	{
-		$this->setErrorhandlers($this->_stashedErrorState);
+		$this->setErrorHandlers($this->_stashedErrorState);
 	}
 
 	/**
@@ -346,6 +391,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 		JFactory::$document = $this->_stashedFactoryState['document'];
 		JFactory::$acl = $this->_stashedFactoryState['acl'];
 		JFactory::$mailer = $this->_stashedFactoryState['mailer'];
+		JFactory::$database = $this->_stashedFactoryState['database'];
 	}
 
 	/**
@@ -386,6 +432,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 		$this->_stashedFactoryState['document'] = JFactory::$document;
 		$this->_stashedFactoryState['acl'] = JFactory::$acl;
 		$this->_stashedFactoryState['mailer'] = JFactory::$mailer;
+		$this->_stashedFactoryState['database'] = JFactory::$database;
 	}
 
 	/**
@@ -422,10 +469,11 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	}
 
 	/**
-	 * Sets the JError error handlers to callback mode and points them at the test
-	 * logging method.
+	 * Sets the JError error handlers to callback mode and points them at the test logging method.
 	 *
-	 * @return	void
+	 * @param   string  $testName  The name of the test class for which to set the error callback method.
+	 *
+	 * @return  void
 	 *
 	 * @since   12.1
 	 */
@@ -445,7 +493,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	 *
 	 * @return  void
 	 *
-	 * @see     PHPUnit_Framework_TestCase::setUp()
+	 * @see     \PHPUnit\Framework\TestCase::setUp()
 	 * @since   11.1
 	 */
 	protected function setUp()
@@ -460,7 +508,7 @@ abstract class TestCase extends PHPUnit_Framework_TestCase
 	 *
 	 * @return  void
 	 *
-	 * @see     PHPUnit_Framework_TestCase::tearDown()
+	 * @see     \PHPUnit\Framework\TestCase::tearDown()
 	 * @since   11.1
 	 */
 	protected function tearDown()

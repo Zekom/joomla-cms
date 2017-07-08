@@ -3,16 +3,18 @@
  * @package     Joomla.Administrator
  * @subpackage  com_content
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
+use Joomla\Utilities\ArrayHelper;
+
 /**
- * @package     Joomla.Administrator
- * @subpackage  com_content
- * @since       1.6
+ * The article controller
+ *
+ * @since  1.6
  */
 class ContentControllerArticle extends JControllerForm
 {
@@ -21,7 +23,7 @@ class ContentControllerArticle extends JControllerForm
 	 *
 	 * @param   array  $config  A named array of configuration variables.
 	 *
-	 * @since	1.6
+	 * @since   1.6
 	 */
 	public function __construct($config = array())
 	{
@@ -47,14 +49,13 @@ class ContentControllerArticle extends JControllerForm
 	 */
 	protected function allowAdd($data = array())
 	{
-		$user = JFactory::getUser();
-		$categoryId = JArrayHelper::getValue($data, 'catid', $this->input->getInt('filter_category_id'), 'int');
+		$categoryId = ArrayHelper::getValue($data, 'catid', $this->input->getInt('filter_category_id'), 'int');
 		$allow = null;
 
 		if ($categoryId)
 		{
 			// If the category has been passed in the data or URL check it.
-			$allow = $user->authorise('core.create', 'com_content.category.' . $categoryId);
+			$allow = JFactory::getUser()->authorise('core.create', 'com_content.category.' . $categoryId);
 		}
 
 		if ($allow === null)
@@ -62,10 +63,8 @@ class ContentControllerArticle extends JControllerForm
 			// In the absense of better information, revert to the component permissions.
 			return parent::allowAdd();
 		}
-		else
-		{
-			return $allow;
-		}
+
+		return $allow;
 	}
 
 	/**
@@ -82,42 +81,35 @@ class ContentControllerArticle extends JControllerForm
 	{
 		$recordId = (int) isset($data[$key]) ? $data[$key] : 0;
 		$user = JFactory::getUser();
-		$userId = $user->get('id');
 
-		// Check general edit permission first.
+		// Zero record (id:0), return component edit permission by calling parent controller method
+		if (!$recordId)
+		{
+			return parent::allowEdit($data, $key);
+		}
+
+		// Check edit on the record asset (explicit or inherited)
 		if ($user->authorise('core.edit', 'com_content.article.' . $recordId))
 		{
 			return true;
 		}
 
-		// Fallback on edit.own.
-		// First test if the permission is available.
+		// Check edit own on the record asset (explicit or inherited)
 		if ($user->authorise('core.edit.own', 'com_content.article.' . $recordId))
 		{
-			// Now test the owner is the user.
-			$ownerId = (int) isset($data['created_by']) ? $data['created_by'] : 0;
-			if (empty($ownerId) && $recordId)
+			// Existing record already has an owner, get it
+			$record = $this->getModel()->getItem($recordId);
+
+			if (empty($record))
 			{
-				// Need to do a lookup from the model.
-				$record = $this->getModel()->getItem($recordId);
-
-				if (empty($record))
-				{
-					return false;
-				}
-
-				$ownerId = $record->created_by;
+				return false;
 			}
 
-			// If the owner matches 'me' then do the test.
-			if ($ownerId == $userId)
-			{
-				return true;
-			}
+			// Grant if current user is owner of the record
+			return $user->id == $record->created_by;
 		}
 
-		// Since there is no asset tracking, revert to the component permissions.
-		return parent::allowEdit($data, $key);
+		return false;
 	}
 
 	/**
@@ -125,7 +117,7 @@ class ContentControllerArticle extends JControllerForm
 	 *
 	 * @param   object  $model  The model.
 	 *
-	 * @return  boolean	 True if successful, false otherwise and internal error is set.
+	 * @return  boolean   True if successful, false otherwise and internal error is set.
 	 *
 	 * @since   1.6
 	 */
@@ -134,6 +126,7 @@ class ContentControllerArticle extends JControllerForm
 		JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
 
 		// Set the model
+		/** @var ContentModelArticle $model */
 		$model = $this->getModel('Article', '', array());
 
 		// Preset the redirect

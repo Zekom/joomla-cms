@@ -3,143 +3,24 @@
  * @package     Joomla.Platform
  * @subpackage  Database
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
 defined('JPATH_PLATFORM') or die;
 
 /**
- * Query Element Class.
- *
- * @property-read    string  $name      The name of the element.
- * @property-read    array   $elements  An array of elements.
- * @property-read    string  $glue      Glue piece.
- *
- * @package     Joomla.Platform
- * @subpackage  Database
- * @since       11.1
- */
-class JDatabaseQueryElement
-{
-	/**
-	 * @var    string  The name of the element.
-	 * @since  11.1
-	 */
-	protected $name = null;
-
-	/**
-	 * @var    array  An array of elements.
-	 * @since  11.1
-	 */
-	protected $elements = null;
-
-	/**
-	 * @var    string  Glue piece.
-	 * @since  11.1
-	 */
-	protected $glue = null;
-
-	/**
-	 * Constructor.
-	 *
-	 * @param   string  $name      The name of the element.
-	 * @param   mixed   $elements  String or array.
-	 * @param   string  $glue      The glue for elements.
-	 *
-	 * @since   11.1
-	 */
-	public function __construct($name, $elements, $glue = ',')
-	{
-		$this->elements = array();
-		$this->name = $name;
-		$this->glue = $glue;
-
-		$this->append($elements);
-	}
-
-	/**
-	 * Magic function to convert the query element to a string.
-	 *
-	 * @return  string
-	 *
-	 * @since   11.1
-	 */
-	public function __toString()
-	{
-		if (substr($this->name, -2) == '()')
-		{
-			return PHP_EOL . substr($this->name, 0, -2) . '(' . implode($this->glue, $this->elements) . ')';
-		}
-		else
-		{
-			return PHP_EOL . $this->name . ' ' . implode($this->glue, $this->elements);
-		}
-	}
-
-	/**
-	 * Appends element parts to the internal list.
-	 *
-	 * @param   mixed  $elements  String or array.
-	 *
-	 * @return  void
-	 *
-	 * @since   11.1
-	 */
-	public function append($elements)
-	{
-		if (is_array($elements))
-		{
-			$this->elements = array_merge($this->elements, $elements);
-		}
-		else
-		{
-			$this->elements = array_merge($this->elements, array($elements));
-		}
-	}
-
-	/**
-	 * Gets the elements of this element.
-	 *
-	 * @return  string
-	 *
-	 * @since   11.1
-	 */
-	public function getElements()
-	{
-		return $this->elements;
-	}
-
-	/**
-	 * Method to provide deep copy support to nested objects and arrays
-	 * when cloning.
-	 *
-	 * @return  void
-	 *
-	 * @since   11.3
-	 */
-	public function __clone()
-	{
-		foreach ($this as $k => $v)
-		{
-			if (is_object($v) || is_array($v))
-			{
-				$this->{$k} = unserialize(serialize($v));
-			}
-		}
-	}
-}
-
-/**
  * Query Building Class.
  *
- * @package     Joomla.Platform
- * @subpackage  Database
- * @since       11.1
+ * @since  11.1
  *
  * @method      string  q()   q($text, $escape = true)  Alias for quote method
- * @method      string  qn()  qs($name, $as = null)     Alias for quoteName method
- * @method      string  e()   e($text, $extra = false)   Alias for escape method
+ * @method      string  qn()  qn($name, $as = null)     Alias for quoteName method
+ * @method      string  e()   e($text, $extra = false)  Alias for escape method
+ * @property-read   JDatabaseQueryElement  $type
+ * @property-read   JDatabaseQueryElement  $select
+ * @property-read   JDatabaseQueryElement  $group
+ * @property-read   JDatabaseQueryElement  $having
  */
 abstract class JDatabaseQuery
 {
@@ -270,6 +151,18 @@ abstract class JDatabaseQuery
 	protected $union = null;
 
 	/**
+	 * @var    JDatabaseQueryElement  The unionAll element.
+	 * @since  13.1
+	 */
+	protected $unionAll = null;
+
+	/**
+	 * @var    array  Details of window function.
+	 * @since  3.7.0
+	 */
+	protected $selectRowNumber = null;
+
+	/**
 	 * Magic method to provide method alias support for quote() and quoteName().
 	 *
 	 * @param   string  $method  The called method.
@@ -339,6 +232,7 @@ abstract class JDatabaseQuery
 			case 'select':
 				$query .= (string) $this->select;
 				$query .= (string) $this->from;
+
 				if ($this->join)
 				{
 					// Special case for joins
@@ -353,14 +247,27 @@ abstract class JDatabaseQuery
 					$query .= (string) $this->where;
 				}
 
-				if ($this->group)
+				if ($this->selectRowNumber === null)
 				{
-					$query .= (string) $this->group;
-				}
+					if ($this->group)
+					{
+						$query .= (string) $this->group;
+					}
 
-				if ($this->having)
-				{
-					$query .= (string) $this->having;
+					if ($this->having)
+					{
+						$query .= (string) $this->having;
+					}
+
+					if ($this->union)
+					{
+						$query .= (string) $this->union;
+					}
+
+					if ($this->unionAll)
+					{
+						$query .= (string) $this->unionAll;
+					}
 				}
 
 				if ($this->order)
@@ -368,10 +275,6 @@ abstract class JDatabaseQuery
 					$query .= (string) $this->order;
 				}
 
-				break;
-
-			case 'union':
-				$query .= (string) $this->union;
 				break;
 
 			case 'delete':
@@ -390,6 +293,11 @@ abstract class JDatabaseQuery
 				if ($this->where)
 				{
 					$query .= (string) $this->where;
+				}
+
+				if ($this->order)
+				{
+					$query .= (string) $this->order;
 				}
 
 				break;
@@ -413,6 +321,11 @@ abstract class JDatabaseQuery
 					$query .= (string) $this->where;
 				}
 
+				if ($this->order)
+				{
+					$query .= (string) $this->order;
+				}
+
 				break;
 
 			case 'insert':
@@ -432,6 +345,7 @@ abstract class JDatabaseQuery
 					}
 
 					$elements = $this->values->getElements();
+
 					if (!($elements[0] instanceof $this))
 					{
 						$query .= ' VALUES ';
@@ -538,7 +452,7 @@ abstract class JDatabaseQuery
 	 *
 	 * @return  string  The required char length call.
 	 *
-	 * @since 11.1
+	 * @since   11.1
 	 */
 	public function charLength($field, $operator = null, $condition = null)
 	{
@@ -563,6 +477,7 @@ abstract class JDatabaseQuery
 			case 'select':
 				$this->select = null;
 				$this->type = null;
+				$this->selectRowNumber = null;
 				break;
 
 			case 'delete':
@@ -632,13 +547,22 @@ abstract class JDatabaseQuery
 				$this->limit = 0;
 				break;
 
+			case 'offset':
+				$this->offset = 0;
+				break;
+
 			case 'union':
 				$this->union = null;
+				break;
+
+			case 'unionAll':
+				$this->unionAll = null;
 				break;
 
 			default:
 				$this->type = null;
 				$this->select = null;
+				$this->selectRowNumber = null;
 				$this->delete = null;
 				$this->update = null;
 				$this->insert = null;
@@ -655,6 +579,7 @@ abstract class JDatabaseQuery
 				$this->exec = null;
 				$this->call = null;
 				$this->union = null;
+				$this->unionAll = null;
 				$this->offset = 0;
 				$this->limit = 0;
 				break;
@@ -860,6 +785,8 @@ abstract class JDatabaseQuery
 	 * @param   string  $subQueryAlias  Alias used when $tables is a JDatabaseQuery.
 	 *
 	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @throws  RuntimeException
 	 *
 	 * @since   11.1
 	 */
@@ -1069,8 +996,8 @@ abstract class JDatabaseQuery
 	 *
 	 * Usage:
 	 * $query->insert('#__a')->set('id = 1');
-	 * $query->insert('#__a)->columns('id, title')->values('1,2')->values->('3,4');
-	 * $query->insert('#__a)->columns('id, title')->values(array('1,2', '3,4'));
+	 * $query->insert('#__a')->columns('id, title')->values('1,2')->values('3,4');
+	 * $query->insert('#__a')->columns('id, title')->values(array('1,2', '3,4'));
 	 *
 	 * @param   mixed    $table           The name of the table to insert data into.
 	 * @param   boolean  $incrementField  The name of the field to auto increment.
@@ -1107,6 +1034,7 @@ abstract class JDatabaseQuery
 		{
 			$this->join = array();
 		}
+
 		$this->join[] = new JDatabaseQueryElement(strtoupper($type) . ' JOIN', $conditions);
 
 		return $this;
@@ -1183,7 +1111,7 @@ abstract class JDatabaseQuery
 	}
 
 	/**
-	 * Add a ordering column to the ORDER clause of the query.
+	 * Add an ordering column to the ORDER clause of the query.
 	 *
 	 * Usage:
 	 * $query->order('foo')->order('bar');
@@ -1239,8 +1167,9 @@ abstract class JDatabaseQuery
 	 * Usage:
 	 * $query->quote('fulltext');
 	 * $query->q('fulltext');
+	 * $query->q(array('option', 'fulltext'));
 	 *
-	 * @param   string   $text    The string to quote.
+	 * @param   mixed    $text    A string or an array of strings to quote.
 	 * @param   boolean  $escape  True to escape the string, false to leave it unchanged.
 	 *
 	 * @return  string  The quoted input string.
@@ -1255,7 +1184,7 @@ abstract class JDatabaseQuery
 			throw new RuntimeException('JLIB_DATABASE_ERROR_INVALID_DB_OBJECT');
 		}
 
-		return $this->db->quote(($escape ? $this->db->escape($text) : $text));
+		return $this->db->quote($text, $escape);
 	}
 
 	/**
@@ -1473,6 +1402,71 @@ abstract class JDatabaseQuery
 	}
 
 	/**
+	 * Extend the WHERE clause with a single condition or an array of conditions, with a potentially
+	 * different logical operator from the one in the current WHERE clause.
+	 *
+	 * Usage:
+	 * $query->where(array('a = 1', 'b = 2'))->extendWhere('XOR', array('c = 3', 'd = 4'));
+	 * will produce: WHERE ((a = 1 AND b = 2) XOR (c = 3 AND d = 4)
+	 *
+	 * @param   string  $outerGlue   The glue by which to join the conditions to the current WHERE conditions.
+	 * @param   mixed   $conditions  A string or array of WHERE conditions.
+	 * @param   string  $innerGlue   The glue by which to join the conditions. Defaults to AND.
+	 *
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @since   3.6
+	 */
+	public function extendWhere($outerGlue, $conditions, $innerGlue = 'AND')
+	{
+		// Replace the current WHERE with a new one which has the old one as an unnamed child.
+		$this->where = new JDatabaseQueryElement('WHERE', $this->where->setName('()'), " $outerGlue ");
+
+		// Append the new conditions as a new unnamed child.
+		$this->where->append(new JDatabaseQueryElement('()', $conditions, " $innerGlue "));
+
+		return $this;
+	}
+
+	/**
+	 * Extend the WHERE clause with an OR and a single condition or an array of conditions.
+	 *
+	 * Usage:
+	 * $query->where(array('a = 1', 'b = 2'))->orWhere(array('c = 3', 'd = 4'));
+	 * will produce: WHERE ((a = 1 AND b = 2) OR (c = 3 AND d = 4)
+	 *
+	 * @param   mixed   $conditions  A string or array of WHERE conditions.
+	 * @param   string  $glue        The glue by which to join the conditions. Defaults to AND.
+	 *
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @since   3.6
+	 */
+	public function orWhere($conditions, $glue = 'AND')
+	{
+		return $this->extendWhere('OR', $conditions, $glue);
+	}
+
+	/**
+	 * Extend the WHERE clause with an AND and a single condition or an array of conditions.
+	 *
+	 * Usage:
+	 * $query->where(array('a = 1', 'b = 2'))->andWhere(array('c = 3', 'd = 4'));
+	 * will produce: WHERE ((a = 1 AND b = 2) AND (c = 3 OR d = 4)
+	 *
+	 * @param   mixed   $conditions  A string or array of WHERE conditions.
+	 * @param   string  $glue        The glue by which to join the conditions. Defaults to OR.
+	 *
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @since   3.6
+	 */
+	public function andWhere($conditions, $glue = 'OR')
+	{
+		return $this->extendWhere('AND', $conditions, $glue);
+	}
+
+	/**
 	 * Method to provide deep copy support to nested objects and
 	 * arrays when cloning.
 	 *
@@ -1484,6 +1478,11 @@ abstract class JDatabaseQuery
 	{
 		foreach ($this as $k => $v)
 		{
+			if ($k === 'db')
+			{
+				continue;
+			}
+
 			if (is_object($v) || is_array($v))
 			{
 				$this->{$k} = unserialize(serialize($v));
@@ -1495,29 +1494,25 @@ abstract class JDatabaseQuery
 	 * Add a query to UNION with the current query.
 	 * Multiple unions each require separate statements and create an array of unions.
 	 *
-	 * Usage:
+	 * Usage (the $query base query MUST be a select query):
 	 * $query->union('SELECT name FROM  #__foo')
-	 * $query->union('SELECT name FROM  #__foo','distinct')
+	 * $query->union('SELECT name FROM  #__foo', true)
 	 * $query->union(array('SELECT name FROM  #__foo','SELECT name FROM  #__bar'))
+	 * $query->union($query2)->union($query3)
+	 * $query->union(array($query2, $query3))
 	 *
 	 * @param   mixed    $query     The JDatabaseQuery object or string to union.
 	 * @param   boolean  $distinct  True to only return distinct rows from the union.
 	 * @param   string   $glue      The glue by which to join the conditions.
 	 *
-	 * @return  mixed    The JDatabaseQuery object on success or boolean false on failure.
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @link http://dev.mysql.com/doc/refman/5.0/en/union.html
 	 *
 	 * @since   12.1
 	 */
 	public function union($query, $distinct = false, $glue = '')
 	{
-
-		// Clear any ORDER BY clause in UNION query
-		// See http://dev.mysql.com/doc/refman/5.0/en/union.html
-		if (!is_null($this->order))
-		{
-			$this->clear('order');
-		}
-
 		// Set up the DISTINCT flag, the name with parentheses, and the glue.
 		if ($distinct)
 		{
@@ -1528,17 +1523,16 @@ abstract class JDatabaseQuery
 		{
 			$glue = ')' . PHP_EOL . 'UNION (';
 			$name = 'UNION ()';
-
 		}
+
 		// Get the JDatabaseQueryElement if it does not exist
 		if (is_null($this->union))
 		{
-				$this->union = new JDatabaseQueryElement($name, $query, "$glue");
+			$this->union = new JDatabaseQueryElement($name, $query, "$glue");
 		}
 		// Otherwise append the second UNION.
 		else
 		{
-			$glue = '';
 			$this->union->append($query);
 		}
 
@@ -1546,7 +1540,7 @@ abstract class JDatabaseQuery
 	}
 
 	/**
-	 * Add a query to UNION DISTINCT with the current query. Simply a proxy to Union with the Distinct clause.
+	 * Add a query to UNION DISTINCT with the current query. Simply a proxy to union with the DISTINCT keyword.
 	 *
 	 * Usage:
 	 * $query->unionDistinct('SELECT name FROM  #__foo')
@@ -1554,7 +1548,9 @@ abstract class JDatabaseQuery
 	 * @param   mixed   $query  The JDatabaseQuery object or string to union.
 	 * @param   string  $glue   The glue by which to join the conditions.
 	 *
-	 * @return  mixed   The JDatabaseQuery object on success or boolean false on failure.
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @see     union
 	 *
 	 * @since   12.1
 	 */
@@ -1564,5 +1560,301 @@ abstract class JDatabaseQuery
 
 		// Apply the distinct flag to the union.
 		return $this->union($query, $distinct, $glue);
+	}
+
+	/**
+	 * Find and replace sprintf-like tokens in a format string.
+	 * Each token takes one of the following forms:
+	 *     %%       - A literal percent character.
+	 *     %[t]     - Where [t] is a type specifier.
+	 *     %[n]$[x] - Where [n] is an argument specifier and [t] is a type specifier.
+	 *
+	 * Types:
+	 * a - Numeric: Replacement text is coerced to a numeric type but not quoted or escaped.
+	 * e - Escape: Replacement text is passed to $this->escape().
+	 * E - Escape (extra): Replacement text is passed to $this->escape() with true as the second argument.
+	 * n - Name Quote: Replacement text is passed to $this->quoteName().
+	 * q - Quote: Replacement text is passed to $this->quote().
+	 * Q - Quote (no escape): Replacement text is passed to $this->quote() with false as the second argument.
+	 * r - Raw: Replacement text is used as-is. (Be careful)
+	 *
+	 * Date Types:
+	 * - Replacement text automatically quoted (use uppercase for Name Quote).
+	 * - Replacement text should be a string in date format or name of a date column.
+	 * y/Y - Year
+	 * m/M - Month
+	 * d/D - Day
+	 * h/H - Hour
+	 * i/I - Minute
+	 * s/S - Second
+	 *
+	 * Invariable Types:
+	 * - Takes no argument.
+	 * - Argument index not incremented.
+	 * t - Replacement text is the result of $this->currentTimestamp().
+	 * z - Replacement text is the result of $this->nullDate(false).
+	 * Z - Replacement text is the result of $this->nullDate(true).
+	 *
+	 * Usage:
+	 * $query->format('SELECT %1$n FROM %2$n WHERE %3$n = %4$a', 'foo', '#__foo', 'bar', 1);
+	 * Returns: SELECT `foo` FROM `#__foo` WHERE `bar` = 1
+	 *
+	 * Notes:
+	 * The argument specifier is optional but recommended for clarity.
+	 * The argument index used for unspecified tokens is incremented only when used.
+	 *
+	 * @param   string  $format  The formatting string.
+	 *
+	 * @return  string  Returns a string produced according to the formatting string.
+	 *
+	 * @since   12.3
+	 */
+	public function format($format)
+	{
+		$query = $this;
+		$args = array_slice(func_get_args(), 1);
+		array_unshift($args, null);
+
+		$i = 1;
+		$func = function ($match) use ($query, $args, &$i)
+		{
+			if (isset($match[6]) && $match[6] == '%')
+			{
+				return '%';
+			}
+
+			// No argument required, do not increment the argument index.
+			switch ($match[5])
+			{
+				case 't':
+					return $query->currentTimestamp();
+					break;
+
+				case 'z':
+					return $query->nullDate(false);
+					break;
+
+				case 'Z':
+					return $query->nullDate(true);
+					break;
+			}
+
+			// Increment the argument index only if argument specifier not provided.
+			$index = is_numeric($match[4]) ? (int) $match[4] : $i++;
+
+			if (!$index || !isset($args[$index]))
+			{
+				// TODO - What to do? sprintf() throws a Warning in these cases.
+				$replacement = '';
+			}
+			else
+			{
+				$replacement = $args[$index];
+			}
+
+			switch ($match[5])
+			{
+				case 'a':
+					return 0 + $replacement;
+					break;
+
+				case 'e':
+					return $query->escape($replacement);
+					break;
+
+				case 'E':
+					return $query->escape($replacement, true);
+					break;
+
+				case 'n':
+					return $query->quoteName($replacement);
+					break;
+
+				case 'q':
+					return $query->quote($replacement);
+					break;
+
+				case 'Q':
+					return $query->quote($replacement, false);
+					break;
+
+				case 'r':
+					return $replacement;
+					break;
+
+				// Dates
+				case 'y':
+					return $query->year($query->quote($replacement));
+					break;
+
+				case 'Y':
+					return $query->year($query->quoteName($replacement));
+					break;
+
+				case 'm':
+					return $query->month($query->quote($replacement));
+					break;
+
+				case 'M':
+					return $query->month($query->quoteName($replacement));
+					break;
+
+				case 'd':
+					return $query->day($query->quote($replacement));
+					break;
+
+				case 'D':
+					return $query->day($query->quoteName($replacement));
+					break;
+
+				case 'h':
+					return $query->hour($query->quote($replacement));
+					break;
+
+				case 'H':
+					return $query->hour($query->quoteName($replacement));
+					break;
+
+				case 'i':
+					return $query->minute($query->quote($replacement));
+					break;
+
+				case 'I':
+					return $query->minute($query->quoteName($replacement));
+					break;
+
+				case 's':
+					return $query->second($query->quote($replacement));
+					break;
+
+				case 'S':
+					return $query->second($query->quoteName($replacement));
+					break;
+			}
+
+			return '';
+		};
+
+		/**
+		 * Regexp to find an replace all tokens.
+		 * Matched fields:
+		 * 0: Full token
+		 * 1: Everything following '%'
+		 * 2: Everything following '%' unless '%'
+		 * 3: Argument specifier and '$'
+		 * 4: Argument specifier
+		 * 5: Type specifier
+		 * 6: '%' if full token is '%%'
+		 */
+		return preg_replace_callback('#%(((([\d]+)\$)?([aeEnqQryYmMdDhHiIsStzZ]))|(%))#', $func, $format);
+	}
+
+	/**
+	 * Add to the current date and time.
+	 * Usage:
+	 * $query->select($query->dateAdd());
+	 * Prefixing the interval with a - (negative sign) will cause subtraction to be used.
+	 * Note: Not all drivers support all units.
+	 *
+	 * @param   mixed   $date      The date to add to. May be date or datetime
+	 * @param   string  $interval  The string representation of the appropriate number of units
+	 * @param   string  $datePart  The part of the date to perform the addition on
+	 *
+	 * @return  string  The string with the appropriate sql for addition of dates
+	 *
+	 * @link    http://dev.mysql.com/doc/refman/5.1/en/date-and-time-functions.html#function_date-add
+	 * @since   13.1
+	 */
+	public function dateAdd($date, $interval, $datePart)
+	{
+		return trim("DATE_ADD('" . $date . "', INTERVAL " . $interval . ' ' . $datePart . ')');
+	}
+
+	/**
+	 * Add a query to UNION ALL with the current query.
+	 * Multiple unions each require separate statements and create an array of unions.
+	 *
+	 * Usage:
+	 * $query->union('SELECT name FROM  #__foo')
+	 * $query->union(array('SELECT name FROM  #__foo','SELECT name FROM  #__bar'))
+	 *
+	 * @param   mixed    $query     The JDatabaseQuery object or string to union.
+	 * @param   boolean  $distinct  Not used - ignored.
+	 * @param   string   $glue      Not used - ignored.
+	 *
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @see     union
+	 *
+	 * @since   13.1
+	 */
+	public function unionAll($query, $distinct = false, $glue = '')
+	{
+		$glue = ')' . PHP_EOL . 'UNION ALL (';
+		$name = 'UNION ALL ()';
+
+		// Get the JDatabaseQueryElement if it does not exist
+		if (is_null($this->unionAll))
+		{
+			$this->unionAll = new JDatabaseQueryElement($name, $query, "$glue");
+		}
+
+		// Otherwise append the second UNION.
+		else
+		{
+			$this->unionAll->append($query);
+		}
+
+		return $this;
+	}
+
+	/**
+	 * Validate arguments which are passed to selectRowNumber method and set up common variables.
+	 *
+	 * @param   string  $orderBy           An expression of ordering for window function.
+	 * @param   string  $orderColumnAlias  An alias for new ordering column.
+	 *
+	 * @return  void
+	 *
+	 * @since   3.7.0
+	 * @throws  RuntimeException
+	 */
+	protected function validateRowNumber($orderBy, $orderColumnAlias)
+	{
+		if ($this->selectRowNumber)
+		{
+			throw new RuntimeException("Method 'selectRowNumber' can be called only once per instance.");
+		}
+
+		$this->type = 'select';
+
+		$this->selectRowNumber = array(
+			'orderBy' => $orderBy,
+			'orderColumnAlias' => $orderColumnAlias,
+		);
+	}
+
+	/**
+	 * Return the number of the current row.
+	 *
+	 * Usage:
+	 * $query->select('id');
+	 * $query->selectRowNumber('ordering,publish_up DESC', 'new_ordering');
+	 * $query->from('#__content');
+	 *
+	 * @param   string  $orderBy           An expression of ordering for window function.
+	 * @param   string  $orderColumnAlias  An alias for new ordering column.
+	 *
+	 * @return  JDatabaseQuery  Returns this object to allow chaining.
+	 *
+	 * @since   3.7.0
+	 * @throws  RuntimeException
+	 */
+	public function selectRowNumber($orderBy, $orderColumnAlias)
+	{
+		$this->validateRowNumber($orderBy, $orderColumnAlias);
+		$this->select("ROW_NUMBER() OVER (ORDER BY $orderBy) AS $orderColumnAlias");
+
+		return $this;
 	}
 }

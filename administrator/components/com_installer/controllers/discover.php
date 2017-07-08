@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_installer
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,9 +12,7 @@ defined('_JEXEC') or die;
 /**
  * Discover Installation Controller
  *
- * @package     Joomla.Administrator
- * @subpackage  com_installer
- * @since       1.6
+ * @since  1.6
  */
 class InstallerControllerDiscover extends JControllerLegacy
 {
@@ -23,7 +21,7 @@ class InstallerControllerDiscover extends JControllerLegacy
 	 *
 	 * @return  void
 	 *
-	 * @since	1.6
+	 * @since   1.6
 	 */
 	public function refresh()
 	{
@@ -37,12 +35,11 @@ class InstallerControllerDiscover extends JControllerLegacy
 	 *
 	 * @return  void
 	 *
-	 * @since	1.6
+	 * @since   1.6
 	 */
 	public function install()
 	{
-		$model = $this->getModel('discover');
-		$model->discover_install();
+		$this->getModel('discover')->discover_install();
 		$this->setRedirect(JRoute::_('index.php?option=com_installer&view=discover', false));
 	}
 
@@ -51,7 +48,7 @@ class InstallerControllerDiscover extends JControllerLegacy
 	 *
 	 * @return  void
 	 *
-	 * @since	1.6
+	 * @since   1.6
 	 */
 	public function purge()
 	{

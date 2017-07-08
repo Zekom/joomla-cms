@@ -3,13 +3,15 @@
  * @package     Joomla.Legacy
  * @subpackage  Application
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
 
-jimport('joomla.environment.response');
+use Joomla\Registry\Registry;
+
+JLog::add('JApplication is deprecated.', JLog::WARNING, 'deprecated');
 
 /**
  * Base class for a Joomla! application.
@@ -18,9 +20,8 @@ jimport('joomla.environment.response');
  * supporting API functions. Derived clases should supply the route(), dispatch()
  * and render() functions.
  *
- * @package     Joomla.Legacy
- * @subpackage  Application
- * @since       11.1
+ * @since       1.5
+ * @deprecated  3.2  Use JApplicationCms instead unless specified otherwise
  */
 class JApplication extends JApplicationBase
 {
@@ -28,7 +29,8 @@ class JApplication extends JApplicationBase
 	 * The client identifier.
 	 *
 	 * @var    integer
-	 * @since  11.1
+	 * @since  1.5
+	 * @deprecated  3.2
 	 */
 	protected $_clientId = null;
 
@@ -36,7 +38,8 @@ class JApplication extends JApplicationBase
 	 * The application message queue.
 	 *
 	 * @var    array
-	 * @since  11.1
+	 * @since  1.5
+	 * @deprecated  3.2
 	 */
 	protected $_messageQueue = array();
 
@@ -44,7 +47,8 @@ class JApplication extends JApplicationBase
 	 * The name of the application.
 	 *
 	 * @var    array
-	 * @since  11.1
+	 * @since  1.5
+	 * @deprecated  3.2
 	 */
 	protected $_name = null;
 
@@ -52,15 +56,17 @@ class JApplication extends JApplicationBase
 	 * The scope of the application.
 	 *
 	 * @var    string
-	 * @since  11.1
+	 * @since  1.5
+	 * @deprecated  3.2
 	 */
 	public $scope = null;
 
 	/**
 	 * The time the request was made.
 	 *
-	 * @var    date
-	 * @since  11.1
+	 * @var    string
+	 * @since  1.5
+	 * @deprecated  3.2
 	 */
 	public $requestTime = null;
 
@@ -68,19 +74,26 @@ class JApplication extends JApplicationBase
 	 * The time the request was made as Unix timestamp.
 	 *
 	 * @var    integer
-	 * @since  11.1
+	 * @since  1.6
+	 * @deprecated  3.2
 	 */
 	public $startTime = null;
 
 	/**
-	 * @var    JApplicationWebClient  The application client object.
-	 * @since  12.2
+	 * The application client object.
+	 *
+	 * @var    JApplicationWebClient
+	 * @since  3.0
+	 * @deprecated  3.2
 	 */
 	public $client;
 
 	/**
-	 * @var    array  JApplication instances container.
-	 * @since  11.3
+	 * JApplication instances container.
+	 *
+	 * @var    JApplication[]
+	 * @since  2.5
+	 * @deprecated  3.2
 	 */
 	protected static $instances = array();
 
@@ -90,7 +103,8 @@ class JApplication extends JApplicationBase
 	 * @param   array  $config  A configuration array including optional elements such as session
 	 * session_name, clientId and others. This is not exhaustive.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function __construct($config = array())
 	{
@@ -137,7 +151,7 @@ class JApplication extends JApplicationBase
 		// Create the session if a session name is passed.
 		if ($config['session'] !== false)
 		{
-			$this->_createSession(self::getHash($config['session_name']));
+			$this->_createSession(JApplicationHelper::getHash($config['session_name']));
 		}
 
 		$this->requestTime = gmdate('Y-m-d H:i');
@@ -147,43 +161,22 @@ class JApplication extends JApplicationBase
 	}
 
 	/**
-	 * Returns the global JApplication object, only creating it if it
+	 * Returns the global JApplicationCms object, only creating it if it
 	 * doesn't already exist.
 	 *
 	 * @param   mixed   $client  A client identifier or name.
 	 * @param   array   $config  An optional associative array of configuration settings.
 	 * @param   string  $prefix  A prefix for class names
 	 *
-	 * @return  JApplication A JApplication object.
+	 * @return  JApplicationCms  A JApplicationCms object.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2  Use JApplicationCms::getInstance() instead
+	 * @note    As of 3.2, this proxies to JApplicationCms::getInstance()
 	 */
 	public static function getInstance($client, $config = array(), $prefix = 'J')
 	{
-		if (empty(self::$instances[$client]))
-		{
-			// Load the router object.
-			$info = JApplicationHelper::getClientInfo($client, true);
-
-			$path = $info->path . '/includes/application.php';
-			if (file_exists($path))
-			{
-				include_once $path;
-
-				// Create a JApplication object.
-				$classname = $prefix . ucfirst($client);
-				$instance = new $classname($config);
-			}
-			else
-			{
-				$error = JError::raiseError(500, JText::sprintf('JLIB_APPLICATION_ERROR_APPLICATION_LOAD', $client));
-				return $error;
-			}
-
-			self::$instances[$client] = $instance;
-		}
-
-		return self::$instances[$client];
+		return JApplicationCms::getInstance($client);
 	}
 
 	/**
@@ -193,7 +186,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function initialise($options = array())
 	{
@@ -208,10 +202,12 @@ class JApplication extends JApplicationBase
 
 		// Set user specific editor.
 		$user = JFactory::getUser();
-		$editor = $user->getParam('editor', $this->getCfg('editor'));
+		$editor = $user->getParam('editor', $this->get('editor'));
+
 		if (!JPluginHelper::isEnabled('editors', $editor))
 		{
-			$editor = $this->getCfg('editor');
+			$editor = $this->get('editor');
+
 			if (!JPluginHelper::isEnabled('editors', $editor))
 			{
 				$editor = 'none';
@@ -235,12 +231,13 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function route()
 	{
 		// Get the full request URI.
-		$uri = clone JURI::getInstance();
+		$uri = clone JUri::getInstance();
 
 		$router = $this->getRouter();
 		$result = $router->parse($uri);
@@ -266,7 +263,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function dispatch($component = null)
 	{
@@ -289,11 +287,14 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function render()
 	{
-		$params = array('template' => $this->getTemplate(), 'file' => 'index.php', 'directory' => JPATH_THEMES, 'params' => $template->params);
+		$template = $this->getTemplate(true);
+
+		$params = array('template' => $template->template, 'file' => 'index.php', 'directory' => JPATH_THEMES, 'params' => $template->params);
 
 		// Parse the document.
 		$document = JFactory::getDocument();
@@ -304,7 +305,7 @@ class JApplication extends JApplicationBase
 		$this->triggerEvent('onBeforeRender');
 
 		// Render the document.
-		$caching = ($this->getCfg('caching') >= 2) ? true : false;
+		$caching = ($this->get('caching') >= 2);
 		JResponse::setBody($document->render($caching, $params));
 
 		// Trigger the onAfterRender event.
@@ -327,7 +328,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void  Calls exit().
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 *
 	 * @see     JApplication::enqueueMessage()
 	 */
@@ -336,7 +338,7 @@ class JApplication extends JApplicationBase
 		// Check for relative internal links.
 		if (preg_match('#^index2?\.php#', $url))
 		{
-			$url = JURI::base() . $url;
+			$url = JUri::base() . $url;
 		}
 
 		// Strip out any line breaks.
@@ -350,7 +352,7 @@ class JApplication extends JApplicationBase
 		 */
 		if (!preg_match('#^http#i', $url))
 		{
-			$uri = JURI::getInstance();
+			$uri = JUri::getInstance();
 			$prefix = $uri->toString(array('scheme', 'user', 'pass', 'host', 'port'));
 
 			if ($url[0] == '/')
@@ -385,18 +387,19 @@ class JApplication extends JApplicationBase
 		// so we will output a javascript redirect statement.
 		if (headers_sent())
 		{
-			echo "<script>document.location.href='" . htmlspecialchars($url) . "';</script>\n";
+			echo "<script>document.location.href='" . str_replace("'", '&apos;', $url) . "';</script>\n";
 		}
 		else
 		{
 			$document = JFactory::getDocument();
 
 			jimport('phputf8.utils.ascii');
+
 			if (($this->client->engine == JApplicationWebClient::TRIDENT) && !utf8_is_ascii($url))
 			{
-				// MSIE type browser and/or server cause issues when url contains utf8 character,so use a javascript redirect method
+				// MSIE type browser and/or server cause issues when URL contains utf8 character,so use a javascript redirect method
 				echo '<html><head><meta http-equiv="content-type" content="text/html; charset=' . $document->getCharset() . '" />'
-					. '<script>document.location.href=\'' . htmlspecialchars($url) . '\';</script></head></html>';
+					. '<script>document.location.href=\'' . str_replace("'", '&apos;', $url) . '\';</script></head></html>';
 			}
 			else
 			{
@@ -406,6 +409,7 @@ class JApplication extends JApplicationBase
 				header('Content-Type: text/html; charset=' . $document->getCharset());
 			}
 		}
+
 		$this->close();
 	}
 
@@ -417,7 +421,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function enqueueMessage($msg, $type = 'message')
 	{
@@ -443,7 +448,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  array  The system message queue.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getMessageQueue()
 	{
@@ -473,11 +479,13 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  mixed  The user state.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getCfg($varname, $default = null)
 	{
 		$config = JFactory::getConfig();
+
 		return $config->get('' . $varname, $default);
 	}
 
@@ -489,7 +497,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  string  The name of the dispatcher.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getName()
 	{
@@ -498,10 +507,12 @@ class JApplication extends JApplicationBase
 		if (empty($name))
 		{
 			$r = null;
+
 			if (!preg_match('/J(.*)/i', get_class($this), $r))
 			{
 				JLog::add(JText::_('JLIB_APPLICATION_ERROR_APPLICATION_GET_NAME'), JLog::WARNING, 'jerror');
 			}
+
 			$name = strtolower($r[1]);
 		}
 
@@ -516,7 +527,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  mixed  The user state or null.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getUserState($key, $default = null)
 	{
@@ -539,7 +551,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  mixed  The previous state, if one existed.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function setUserState($key, $value)
 	{
@@ -551,7 +564,7 @@ class JApplication extends JApplicationBase
 			return $registry->set($key, $value);
 		}
 
-		return null;
+		return;
 	}
 
 	/**
@@ -564,7 +577,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  The request user state.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getUserStateFromRequest($key, $request, $default = null, $type = 'none')
 	{
@@ -599,15 +613,16 @@ class JApplication extends JApplicationBase
 	 * @param   array  $credentials  Array('username' => string, 'password' => string)
 	 * @param   array  $options      Array('remember' => boolean)
 	 *
-	 * @return  boolean  True on success.
+	 * @return  boolean|JException  True on success, false if failed or silent handling is configured, or a JException object on authentication error.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function login($credentials, $options = array())
 	{
-		// Get the global JAuthentication object.
-		jimport('joomla.user.authentication');
+		JPluginHelper::importPlugin('user');
 
+		// Get the global JAuthentication object.
 		$authenticate = JAuthentication::getInstance();
 		$response = $authenticate->authenticate($credentials, $options);
 
@@ -616,9 +631,11 @@ class JApplication extends JApplicationBase
 			// Validate that the user should be able to login (different to being authenticated).
 			// This permits authentication plugins blocking the user
 			$authorisations = $authenticate->authorise($response, $options);
+
 			foreach ($authorisations as $authorisation)
 			{
 				$denied_states = array(JAuthentication::STATUS_EXPIRED, JAuthentication::STATUS_DENIED);
+
 				if (in_array($authorisation->status, $denied_states))
 				{
 					// Trigger onUserAuthorisationFailure Event.
@@ -636,9 +653,11 @@ class JApplication extends JApplicationBase
 						case JAuthentication::STATUS_EXPIRED:
 							return JError::raiseWarning('102002', JText::_('JLIB_LOGIN_EXPIRED'));
 							break;
+
 						case JAuthentication::STATUS_DENIED:
 							return JError::raiseWarning('102003', JText::_('JLIB_LOGIN_DENIED'));
 							break;
+
 						default:
 							return JError::raiseWarning('102004', JText::_('JLIB_LOGIN_AUTHORISATION'));
 							break;
@@ -649,7 +668,7 @@ class JApplication extends JApplicationBase
 			// Import the user plugin group.
 			JPluginHelper::importPlugin('user');
 
-			// OK, the credentials are authenticated and user is authorised.  Lets fire the onLogin event.
+			// OK, the credentials are authenticated and user is authorised.  Let's fire the onLogin event.
 			$results = $this->triggerEvent('onUserLogin', array((array) $response, $options));
 
 			/*
@@ -659,28 +678,30 @@ class JApplication extends JApplicationBase
 			 * Any errors raised should be done in the plugin as this provides the ability
 			 * to provide much more information about why the routine may have failed.
 			 */
+			$user = JFactory::getUser();
 
-			if (!in_array(false, $results, true))
+			if ($response->type == 'Cookie')
 			{
-				// Set the remember me cookie if enabled.
-				if (isset($options['remember']) && $options['remember'])
+				$user->set('cookieLogin', true);
+			}
+
+			if (in_array(false, $results, true) == false)
+			{
+				$options['user'] = $user;
+				$options['responseType'] = $response->type;
+
+				if (isset($response->length) && isset($response->secure) && isset($response->lifetime))
 				{
-					// Create the encryption key, apply extra hardening using the user agent string.
-					$privateKey = self::getHash(@$_SERVER['HTTP_USER_AGENT']);
-
-					$key = new JCryptKey('simple', $privateKey, $privateKey);
-					$crypt = new JCrypt(new JCryptCipherSimple, $key);
-					$rcookie = $crypt->encrypt(serialize($credentials));
-					$lifetime = time() + 365 * 24 * 60 * 60;
-
-					// Use domain and path set in config for cookie if it exists.
-					$cookie_domain = $this->getCfg('cookie_domain', '');
-					$cookie_path = $this->getCfg('cookie_path', '/');
-					setcookie(self::getHash('JLOGIN_REMEMBER'), $rcookie, $lifetime, $cookie_path, $cookie_domain);
+					$options['length'] = $response->length;
+					$options['secure'] = $response->secure;
+					$options['lifetime'] = $response->lifetime;
 				}
 
-				return true;
+				// The user is successfully logged in. Run the after login events
+				$this->triggerEvent('onUserAfterLogin', array($options));
 			}
+
+			return true;
 		}
 
 		// Trigger onUserLoginFailure Event.
@@ -716,7 +737,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  boolean  True on success
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function logout($userid = null, $options = array())
 	{
@@ -739,14 +761,10 @@ class JApplication extends JApplicationBase
 		// OK, the credentials are built. Lets fire the onLogout event.
 		$results = $this->triggerEvent('onUserLogout', array($parameters, $options));
 
-		// Check if any of the plugins failed. If none did, success.
-
 		if (!in_array(false, $results, true))
 		{
-			// Use domain and path set in config for cookie if it exists.
-			$cookie_domain = $this->getCfg('cookie_domain', '');
-			$cookie_path = $this->getCfg('cookie_path', '/');
-			setcookie(self::getHash('JLOGIN_REMEMBER'), false, time() - 86400, $cookie_path, $cookie_domain);
+				$options['username'] = $user->get('username');
+				$this->triggerEvent('onUserAfterLogout', array($options));
 
 			return true;
 		}
@@ -760,15 +778,26 @@ class JApplication extends JApplicationBase
 	/**
 	 * Gets the name of the current template.
 	 *
-	 * @param   array  $params  An optional associative array of configuration settings
+	 * @param   boolean  $params  An optional associative array of configuration settings
 	 *
-	 * @return  string  System is the fallback.
+	 * @return  mixed  System is the fallback.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
-	public function getTemplate($params = array())
+	public function getTemplate($params = false)
 	{
-		return 'system';
+		$template = new stdClass;
+
+		$template->template = 'system';
+		$template->params   = new Registry;
+
+		if ($params)
+		{
+			return $template;
+		}
+
+		return $template->template;
 	}
 
 	/**
@@ -777,11 +806,12 @@ class JApplication extends JApplicationBase
 	 * @param   string  $name     The name of the application.
 	 * @param   array   $options  An optional associative array of configuration settings.
 	 *
-	 * @return  JRouter  A JRouter object
+	 * @return  JRouter|null  A JRouter object
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
-	static public function getRouter($name = null, array $options = array())
+	public static function getRouter($name = null, array $options = array())
 	{
 		if (!isset($name))
 		{
@@ -789,22 +819,20 @@ class JApplication extends JApplicationBase
 			$name = $app->getName();
 		}
 
-		jimport('joomla.application.router');
-
 		try
 		{
 			$router = JRouter::getInstance($name, $options);
 		}
 		catch (Exception $e)
 		{
-			return null;
+			return;
 		}
 
 		return $router;
 	}
 
 	/**
-	 * This method transliterates a string into an URL
+	 * This method transliterates a string into a URL
 	 * safe string or returns a URL safe UTF-8 string
 	 * based on the global configuration
 	 *
@@ -812,20 +840,12 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  string  Processed string
 	 *
-	 * @since   11.1
+	 * @since   1.6
+	 * @deprecated  3.2  Use JApplicationHelper::stringURLSafe instead
 	 */
-	static public function stringURLSafe($string)
+	public static function stringURLSafe($string)
 	{
-		if (JFactory::getConfig()->get('unicodeslugs') == 1)
-		{
-			$output = JFilterOutput::stringURLUnicodeSlug($string);
-		}
-		else
-		{
-			$output = JFilterOutput::stringURLSafe($string);
-		}
-
-		return $output;
+		return JApplicationHelper::stringURLSafe($string);
 	}
 
 	/**
@@ -834,9 +854,10 @@ class JApplication extends JApplicationBase
 	 * @param   string  $name     The name of the application.
 	 * @param   array   $options  An optional associative array of configuration settings.
 	 *
-	 * @return  JPathway  A JPathway object
+	 * @return  JPathway|null  A JPathway object
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getPathway($name = null, $options = array())
 	{
@@ -851,7 +872,7 @@ class JApplication extends JApplicationBase
 		}
 		catch (Exception $e)
 		{
-			return null;
+			return;
 		}
 
 		return $pathway;
@@ -863,9 +884,10 @@ class JApplication extends JApplicationBase
 	 * @param   string  $name     The name of the application/client.
 	 * @param   array   $options  An optional associative array of configuration settings.
 	 *
-	 * @return  JMenu  JMenu object.
+	 * @return  JMenu|null  JMenu object.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getMenu($name = null, $options = array())
 	{
@@ -880,7 +902,7 @@ class JApplication extends JApplicationBase
 		}
 		catch (Exception $e)
 		{
-			return null;
+			return;
 		}
 
 		return $menu;
@@ -893,11 +915,12 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  string  A secure hash
 	 *
-	 * @since   11.1
+	 * @since   1.6
+	 * @deprecated  3.2  Use JApplicationHelper::getHash instead
 	 */
 	public static function getHash($seed)
 	{
-		return md5(JFactory::getConfig()->get('secret') . $seed);
+		return JApplicationHelper::getHash($seed);
 	}
 
 	/**
@@ -907,7 +930,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  JConfig  A JConfig object
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	protected function _createConfiguration($file)
 	{
@@ -937,7 +961,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  JSession  JSession on success. May call exit() on database error.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	protected function _createSession($name)
 	{
@@ -947,14 +972,14 @@ class JApplication extends JApplicationBase
 		switch ($this->_clientId)
 		{
 			case 0:
-				if ($this->getCfg('force_ssl') == 2)
+				if ($this->get('force_ssl') == 2)
 				{
 					$options['force_ssl'] = true;
 				}
 				break;
 
 			case 1:
-				if ($this->getCfg('force_ssl') >= 1)
+				if ($this->get('force_ssl') >= 1)
 				{
 					$options['force_ssl'] = true;
 				}
@@ -969,24 +994,26 @@ class JApplication extends JApplicationBase
 
 		// TODO: At some point we need to get away from having session data always in the db.
 
-		$db = JFactory::getDBO();
+		$db = JFactory::getDbo();
 
 		// Remove expired sessions from the database.
 		$time = time();
+
 		if ($time % 2)
 		{
 			// The modulus introduces a little entropy, making the flushing less accurate
 			// but fires the query less than half the time.
-			$query = $db->getQuery(true);
-			$query->delete($query->qn('#__session'))
-				->where($query->qn('time') . ' < ' . $query->q((int) ($time - $session->getExpire())));
+			$query = $db->getQuery(true)
+				->delete($db->quoteName('#__session'))
+				->where($db->quoteName('time') . ' < ' . $db->quote((int) ($time - $session->getExpire())));
 
 			$db->setQuery($query);
 			$db->execute();
 		}
 
 		// Check to see the the session already exists.
-		$handler = $this->getCfg('session_handler');
+		$handler = $this->get('session_handler');
+
 		if (($handler != 'database' && ($time % 2 || $session->isNew()))
 			|| ($handler == 'database' && $session->isNew()))
 		{
@@ -1004,18 +1031,19 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   11.1
+	 * @since   1.6
+	 * @deprecated  3.2
 	 */
 	public function checkSession()
 	{
-		$db = JFactory::getDBO();
+		$db = JFactory::getDbo();
 		$session = JFactory::getSession();
 		$user = JFactory::getUser();
 
-		$query = $db->getQuery(true);
-		$query->select($query->qn('session_id'))
-			->from($query->qn('#__session'))
-			->where($query->qn('session_id') . ' = ' . $query->q($session->getId()));
+		$query = $db->getQuery(true)
+			->select($db->quoteName('session_id'))
+			->from($db->quoteName('#__session'))
+			->where($db->quoteName('session_id') . ' = ' . $db->quote($session->getId()));
 
 		$db->setQuery($query, 0, 1);
 		$exists = $db->loadResult();
@@ -1024,23 +1052,24 @@ class JApplication extends JApplicationBase
 		if (!$exists)
 		{
 			$query->clear();
+
 			if ($session->isNew())
 			{
-				$query->insert($query->qn('#__session'))
-					->columns($query->qn('session_id') . ', ' . $query->qn('client_id') . ', ' . $query->qn('time'))
-					->values($query->q($session->getId()) . ', ' . (int) $this->getClientId() . ', ' . $query->q((int) time()));
+				$query->insert($db->quoteName('#__session'))
+					->columns($db->quoteName('session_id') . ', ' . $db->quoteName('client_id') . ', ' . $db->quoteName('time'))
+					->values($db->quote($session->getId()) . ', ' . (int) $this->getClientId() . ', ' . $db->quote((int) time()));
 				$db->setQuery($query);
 			}
 			else
 			{
-				$query->insert($query->qn('#__session'))
+				$query->insert($db->quoteName('#__session'))
 					->columns(
-						$query->qn('session_id') . ', ' . $query->qn('client_id') . ', ' . $query->qn('guest') . ', ' .
-						$query->qn('time') . ', ' . $query->qn('userid') . ', ' . $query->qn('username')
+						$db->quoteName('session_id') . ', ' . $db->quoteName('client_id') . ', ' . $db->quoteName('guest') . ', ' .
+						$db->quoteName('time') . ', ' . $db->quoteName('userid') . ', ' . $db->quoteName('username')
 					)
 					->values(
-						$query->q($session->getId()) . ', ' . (int) $this->getClientId() . ', ' . (int) $user->get('guest') . ', ' .
-						$query->q((int) $session->get('session.timer.start')) . ', ' . (int) $user->get('id') . ', ' . $query->q($user->get('username'))
+						$db->quote($session->getId()) . ', ' . (int) $this->getClientId() . ', ' . (int) $user->get('guest') . ', ' .
+						$db->quote((int) $session->get('session.timer.start')) . ', ' . (int) $user->get('id') . ', ' . $db->quote($user->get('username'))
 					);
 
 				$db->setQuery($query);
@@ -1063,14 +1092,16 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  void
 	 *
-	 * @since   12.2
+	 * @since   3.0
+	 * @deprecated  3.2
 	 */
 	public function afterSessionStart()
 	{
 		$session = JFactory::getSession();
+
 		if ($session->isNew())
 		{
-			$session->set('registry', new JRegistry('session'));
+			$session->set('registry', new Registry);
 			$session->set('user', new JUser);
 		}
 	}
@@ -1080,7 +1111,8 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  integer  A client identifier.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function getClientId()
 	{
@@ -1092,11 +1124,12 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  boolean  True if this application is administrator.
 	 *
-	 * @since   11.1
+	 * @since   1.0.2
+	 * @deprecated  3.2
 	 */
 	public function isAdmin()
 	{
-		return ($this->_clientId == 1);
+		return $this->isClient('administrator');
 	}
 
 	/**
@@ -1104,11 +1137,26 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  boolean  True if this application is site.
 	 *
-	 * @since   11.1
+	 * @since   1.5
+	 * @deprecated  3.2
 	 */
 	public function isSite()
 	{
-		return ($this->_clientId == 0);
+		return $this->isClient('site');
+	}
+
+	/**
+	 * Check the client interface by name.
+	 *
+	 * @param   string  $identifier  String identifier for the application interface
+	 *
+	 * @return  boolean  True if this application is of the given type client interface.
+	 *
+	 * @since   3.7.0
+	 */
+	public function isClient($identifier)
+	{
+		return $this->getName() == $identifier;
 	}
 
 	/**
@@ -1116,10 +1164,10 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  boolean  True if Windows OS
 	 *
-	 * @since   11.1
-	 * @deprecated  13.3 Use the IS_WIN constant instead.
+	 * @since   1.6
+	 * @deprecated  4.0 Use the IS_WIN constant instead.
 	 */
-	public static function isWinOS()
+	public static function isWinOs()
 	{
 		JLog::add('JApplication::isWinOS() is deprecated. Use the IS_WIN constant instead.', JLog::WARNING, 'deprecated');
 
@@ -1131,11 +1179,12 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  boolean  True if using SSL, false if not.
 	 *
-	 * @since   12.2
+	 * @since   3.0
+	 * @deprecated  3.2
 	 */
 	public function isSSLConnection()
 	{
-		return ((isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on')) || getenv('SSL_PROTOCOL_VERSION'));
+		return (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on')) || getenv('SSL_PROTOCOL_VERSION');
 	}
 
 	/**
@@ -1143,11 +1192,12 @@ class JApplication extends JApplicationBase
 	 *
 	 * @return  string  The response
 	 *
-	 * @since   11.1
+	 * @since   1.6
+	 * @deprecated  3.2
 	 */
 	public function __toString()
 	{
-		$compress = $this->getCfg('gzip', false);
+		$compress = $this->get('gzip', false);
 
 		return JResponse::toString($compress);
 	}

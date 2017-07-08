@@ -1,18 +1,24 @@
 <?php
 /**
- * @package     Joomla.Administrator
+ * @package     Joomla.Site
  * @subpackage  Templates.protostar
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
-$app = JFactory::getApplication();
-$doc = JFactory::getDocument();
-$this->language = $doc->language;
-$this->direction = $doc->direction;
+/** @var JDocumentHtml $this */
+
+$app  = JFactory::getApplication();
+$user = JFactory::getUser();
+
+// Output as HTML5
+$this->setHtml5(true);
+
+// Getting params from template
+$params = $app->getTemplate(true)->params;
 
 // Detecting Active Variables
 $option   = $app->input->getCmd('option', '');
@@ -20,9 +26,9 @@ $view     = $app->input->getCmd('view', '');
 $layout   = $app->input->getCmd('layout', '');
 $task     = $app->input->getCmd('task', '');
 $itemid   = $app->input->getCmd('Itemid', '');
-$sitename = $app->getCfg('sitename');
+$sitename = $app->get('sitename');
 
-if($task == "edit" || $layout == "form" )
+if ($task === 'edit' || $layout === 'form')
 {
 	$fullWidth = 1;
 }
@@ -34,160 +40,179 @@ else
 // Add JavaScript Frameworks
 JHtml::_('bootstrap.framework');
 
+// Add template js
+JHtml::_('script', 'template.js', array('version' => 'auto', 'relative' => true));
+
+// Add html5 shiv
+JHtml::_('script', 'jui/html5.js', array('version' => 'auto', 'relative' => true, 'conditional' => 'lt IE 9'));
+
 // Add Stylesheets
-$doc->addStyleSheet('templates/'.$this->template.'/css/template.css');
+JHtml::_('stylesheet', 'template.css', array('version' => 'auto', 'relative' => true));
 
-// Load optional rtl Bootstrap css and Bootstrap bugfixes
-JHtmlBootstrap::loadCss($includeMaincss = false, $this->direction);
+// Use of Google Font
+if ($this->params->get('googleFont'))
+{
+	JHtml::_('stylesheet', '//fonts.googleapis.com/css?family=' . $this->params->get('googleFontName'));
+	$this->addStyleDeclaration("
+	h1, h2, h3, h4, h5, h6, .site-title {
+		font-family: '" . str_replace('+', ' ', $this->params->get('googleFontName')) . "', sans-serif;
+	}");
+}
 
-// Add current user information
-$user = JFactory::getUser();
+// Template color
+if ($this->params->get('templateColor'))
+{
+	$this->addStyleDeclaration('
+	body.site {
+		border-top: 3px solid ' . $this->params->get('templateColor') . ';
+		background-color: ' . $this->params->get('templateBackgroundColor') . ';
+	}
+	a {
+		color: ' . $this->params->get('templateColor') . ';
+	}
+	.nav-list > .active > a,
+	.nav-list > .active > a:hover,
+	.dropdown-menu li > a:hover,
+	.dropdown-menu .active > a,
+	.dropdown-menu .active > a:hover,
+	.nav-pills > .active > a,
+	.nav-pills > .active > a:hover,
+	.btn-primary {
+		background: ' . $this->params->get('templateColor') . ';
+	}');
+}
+
+// Check for a custom CSS file
+JHtml::_('stylesheet', 'user.css', array('version' => 'auto', 'relative' => true));
+
+// Check for a custom js file
+JHtml::_('script', 'user.js', array('version' => 'auto', 'relative' => true));
+
+// Load optional RTL Bootstrap CSS
+JHtml::_('bootstrap.loadCss', false, $this->direction);
 
 // Adjusting content width
 if ($this->countModules('position-7') && $this->countModules('position-8'))
 {
-	$span = "span6";
+	$span = 'span6';
 }
 elseif ($this->countModules('position-7') && !$this->countModules('position-8'))
 {
-	$span = "span9";
+	$span = 'span9';
 }
 elseif (!$this->countModules('position-7') && $this->countModules('position-8'))
 {
-	$span = "span9";
+	$span = 'span9';
 }
 else
 {
-	$span = "span12";
+	$span = 'span12';
 }
 
 // Logo file or site title param
 if ($this->params->get('logoFile'))
 {
-	$logo = '<img src="'. JURI::root() . $this->params->get('logoFile') .'" alt="'. $sitename .'" />';
+	$logo = '<img src="' . JUri::root() . $this->params->get('logoFile') . '" alt="' . $sitename . '" />';
 }
 elseif ($this->params->get('sitetitle'))
 {
-	$logo = '<span class="site-title" title="'. $sitename .'">'. htmlspecialchars($this->params->get('sitetitle')) .'</span>';
+	$logo = '<span class="site-title" title="' . $sitename . '">' . htmlspecialchars($this->params->get('sitetitle'), ENT_COMPAT, 'UTF-8') . '</span>';
 }
 else
 {
-	$logo = '<span class="site-title" title="'. $sitename .'">'. $sitename .'</span>';
+	$logo = '<span class="site-title" title="' . $sitename . '">' . $sitename . '</span>';
 }
 ?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $this->language; ?>" lang="<?php echo $this->language; ?>" dir="<?php echo $this->direction; ?>">
+<html lang="<?php echo $this->language; ?>" dir="<?php echo $this->direction; ?>">
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<jdoc:include type="head" />
-	<?php
-	// Use of Google Font
-	if ($this->params->get('googleFont'))
-	{
-	?>
-		<link href='http://fonts.googleapis.com/css?family=<?php echo $this->params->get('googleFontName');?>' rel='stylesheet' type='text/css' />
-		<style type="text/css">
-			h1,h2,h3,h4,h5,h6,.site-title{
-				font-family: '<?php echo str_replace('+', ' ', $this->params->get('googleFontName'));?>', sans-serif;
-			}
-		</style>
-	<?php
-	}
-	?>
-	<?php
-	// Template color
-	if ($this->params->get('templateColor'))
-	{
-	?>
-	<style type="text/css">
-		body.site
-		{
-			border-top: 3px solid <?php echo $this->params->get('templateColor');?>;
-			background-color: <?php echo $this->params->get('templateBackgroundColor');?>
-		}
-		a
-		{
-			color: <?php echo $this->params->get('templateColor');?>;
-		}
-		.navbar-inner, .nav-list > .active > a, .nav-list > .active > a:hover, .dropdown-menu li > a:hover, .dropdown-menu .active > a, .dropdown-menu .active > a:hover, .nav-pills > .active > a, .nav-pills > .active > a:hover,
-		.btn-primary
-		{
-			background: <?php echo $this->params->get('templateColor');?>;
-		}
-		.navbar-inner
-		{
-			-moz-box-shadow: 0 1px 3px rgba(0, 0, 0, .25), inset 0 -1px 0 rgba(0, 0, 0, .1), inset 0 30px 10px rgba(0, 0, 0, .2);
-			-webkit-box-shadow: 0 1px 3px rgba(0, 0, 0, .25), inset 0 -1px 0 rgba(0, 0, 0, .1), inset 0 30px 10px rgba(0, 0, 0, .2);
-			box-shadow: 0 1px 3px rgba(0, 0, 0, .25), inset 0 -1px 0 rgba(0, 0, 0, .1), inset 0 30px 10px rgba(0, 0, 0, .2);
-		}
-	</style>
-	<?php
-	}
-	?>
-	<!--[if lt IE 9]>
-		<script src="<?php echo $this->baseurl ?>/media/jui/js/html5.js"></script>
-	<![endif]-->
 </head>
-
-<body class="site <?php echo $option . " view-" . $view . " layout-" . $layout . " task-" . $task . " itemid-" . $itemid . " ";?> <?php if ($this->params->get('fluidContainer')) { echo "fluid"; } ?>">
+<body class="site <?php echo $option
+	. ' view-' . $view
+	. ($layout ? ' layout-' . $layout : ' no-layout')
+	. ($task ? ' task-' . $task : ' no-task')
+	. ($itemid ? ' itemid-' . $itemid : '')
+	. ($params->get('fluidContainer') ? ' fluid' : '');
+	echo ($this->direction === 'rtl' ? ' rtl' : '');
+?>">
 	<!-- Body -->
-	<div class="body">
-		<div class="container<?php if ($this->params->get('fluidContainer')) { echo "-fluid"; } ?>">
+	<div class="body" id="top">
+		<div class="container<?php echo ($params->get('fluidContainer') ? '-fluid' : ''); ?>">
 			<!-- Header -->
-			<div class="header">
-				<div class="header-inner">
-					<a class="brand pull-left" href="<?php echo $this->baseurl; ?>">
-						<?php echo $logo;?> <?php if ($this->params->get('sitedescription')) { echo '<div class="site-description">'. htmlspecialchars($this->params->get('sitedescription')) .'</div>'; } ?>
+			<header class="header" role="banner">
+				<div class="header-inner clearfix">
+					<a class="brand pull-left" href="<?php echo $this->baseurl; ?>/">
+						<?php echo $logo; ?>
+						<?php if ($this->params->get('sitedescription')) : ?>
+							<?php echo '<div class="site-description">' . htmlspecialchars($this->params->get('sitedescription'), ENT_COMPAT, 'UTF-8') . '</div>'; ?>
+						<?php endif; ?>
 					</a>
 					<div class="header-search pull-right">
 						<jdoc:include type="modules" name="position-0" style="none" />
 					</div>
-					<div class="clearfix"></div>
 				</div>
-			</div>
-			<?php if ($this->countModules('position-1')): ?>
-			<div class="navigation">
-				<jdoc:include type="modules" name="position-1" style="none" />
-			</div>
+			</header>
+			<?php if ($this->countModules('position-1')) : ?>
+				<nav class="navigation" role="navigation">
+					<div class="navbar pull-left">
+						<a class="btn btn-navbar collapsed" data-toggle="collapse" data-target=".nav-collapse">
+							<span class="element-invisible"><?php echo JTEXT::_('TPL_PROTOSTAR_TOGGLE_MENU'); ?></span>
+							<span class="icon-bar"></span>
+							<span class="icon-bar"></span>
+							<span class="icon-bar"></span>
+						</a>
+					</div>
+					<div class="nav-collapse">
+						<jdoc:include type="modules" name="position-1" style="none" />
+					</div>
+				</nav>
 			<?php endif; ?>
 			<jdoc:include type="modules" name="banner" style="xhtml" />
 			<div class="row-fluid">
-				<?php if ($this->countModules('position-8')): ?>
-				<!-- Begin Sidebar -->
-				<div id="sidebar" class="span3">
-					<div class="sidebar-nav">
-						<jdoc:include type="modules" name="position-8" style="xhtml" />
+				<?php if ($this->countModules('position-8')) : ?>
+					<!-- Begin Sidebar -->
+					<div id="sidebar" class="span3">
+						<div class="sidebar-nav">
+							<jdoc:include type="modules" name="position-8" style="xhtml" />
+						</div>
 					</div>
-				</div>
-				<!-- End Sidebar -->
+					<!-- End Sidebar -->
 				<?php endif; ?>
-				<div id="content" class="<?php echo $span;?>">
+				<main id="content" role="main" class="<?php echo $span; ?>">
 					<!-- Begin Content -->
 					<jdoc:include type="modules" name="position-3" style="xhtml" />
 					<jdoc:include type="message" />
 					<jdoc:include type="component" />
 					<jdoc:include type="modules" name="position-2" style="none" />
 					<!-- End Content -->
-				</div>
+				</main>
 				<?php if ($this->countModules('position-7')) : ?>
-				<div id="aside" class="span3">
-					<!-- Begin Right Sidebar -->
-					<jdoc:include type="modules" name="position-7" style="well" />
-					<!-- End Right Sidebar -->
-				</div>
+					<div id="aside" class="span3">
+						<!-- Begin Right Sidebar -->
+						<jdoc:include type="modules" name="position-7" style="well" />
+						<!-- End Right Sidebar -->
+					</div>
 				<?php endif; ?>
 			</div>
 		</div>
 	</div>
 	<!-- Footer -->
-	<div class="footer">
-		<div class="container<?php if ($this->params->get('fluidContainer')) { echo "-fluid"; } ?>">
+	<footer class="footer" role="contentinfo">
+		<div class="container<?php echo ($params->get('fluidContainer') ? '-fluid' : ''); ?>">
 			<hr />
 			<jdoc:include type="modules" name="footer" style="none" />
-			<p class="pull-right"><a href="#top" id="back-top"><?php echo JText::_('TPL_PROTOSTAR_BACKTOTOP'); ?></a></p>
-			<p>&copy; <?php echo $sitename; ?> <?php echo date('Y');?></p>
+			<p class="pull-right">
+				<a href="#top" id="back-top">
+					<?php echo JText::_('TPL_PROTOSTAR_BACKTOTOP'); ?>
+				</a>
+			</p>
+			<p>
+				&copy; <?php echo date('Y'); ?> <?php echo $sitename; ?>
+			</p>
 		</div>
-	</div>
+	</footer>
 	<jdoc:include type="modules" name="debug" style="none" />
 </body>
 </html>

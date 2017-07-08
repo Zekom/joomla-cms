@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_admin
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,73 +12,66 @@ defined('_JEXEC') or die;
 /**
  * Utility class working with phpsetting
  *
- * @package     Joomla.Administrator
- * @subpackage  com_admin
- * @since       1.6
+ * @since  1.6
  */
 abstract class JHtmlPhpSetting
 {
 	/**
-	 * method to generate a boolean message for a value
+	 * Method to generate a boolean message for a value
 	 *
-	 * @param boolean $val is the value set?
+	 * @param   boolean  $val  is the value set?
 	 *
-	 * @return string html code
+	 * @return  string html code
 	 */
 	public static function boolean($val)
 	{
-		if ($val) {
-			return JText::_('JON');
-		}
-		else {
-			return JText::_('JOFF');
-		}
+		return JText::_($val ? 'JON' : 'JOFF');
 	}
 
 	/**
-	 * method to generate a boolean message for a value
+	 * Method to generate a boolean message for a value
 	 *
-	 * @param boolean $val is the value set?
+	 * @param   boolean  $val  is the value set?
 	 *
-	 * @return string html code
+	 * @return  string html code
 	 */
 	public static function set($val)
 	{
-		if ($val) {
-			return JText::_('JYES');
-		} else {
-			return JText::_('JNO');
-		}
+		return JText::_($val ? 'JYES' : 'JNO');
 	}
 
 	/**
-	 * method to generate a string message for a value
+	 * Method to generate a string message for a value
 	 *
-	 * @param string $val a php ini value
+	 * @param   string  $val  a php ini value
 	 *
-	 * @return string html code
+	 * @return  string html code
 	 */
 	public static function string($val)
 	{
-		if (empty($val)) {
-			return JText::_('JNONE');
-		} else {
-			return $val;
-		}
+		return !empty($val) ? $val : JText::_('JNONE');
 	}
 
 	/**
-	 * method to generate an integer from a value
+	 * Method to generate an integer from a value
 	 *
-	 * @param string $val a php ini value
+	 * @param   string  $val  a php ini value
 	 *
-	 * @return string html code
+	 * @return  string html code
 	 *
 	 * @deprecated  4.0  Use intval() or casting instead.
 	 */
 	public static function integer($val)
 	{
-		JLog::add('JHtmlPhpSetting::integer() is deprecated. Use intval() or casting instead.', JLog::WARNING, 'deprecated');
+		try
+		{
+			JLog::add(sprintf('%s() is deprecated. Use intval() or casting instead.', __METHOD__), JLog::WARNING, 'deprecated');
+		}
+		catch (RuntimeException $exception)
+		{
+			// Informational log only
+		}
+
 		return (int) $val;
 	}
 }

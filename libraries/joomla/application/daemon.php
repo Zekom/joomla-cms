@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Application
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -11,20 +11,20 @@ defined('JPATH_PLATFORM') or die;
 
 jimport('joomla.filesystem.folder');
 
+use Joomla\Registry\Registry;
+
 /**
- * Class to turn JCli applications into daemons.  It requires CLI and PCNTL support built into PHP.
+ * Class to turn JApplicationCli applications into daemons.  It requires CLI and PCNTL support built into PHP.
  *
- * @package     Joomla.Platform
- * @subpackage  Application
- * @see         http://www.php.net/manual/en/book.pcntl.php
- * @see         http://php.net/manual/en/features.commandline.php
- * @since       11.1
+ * @link   https://secure.php.net/manual/en/book.pcntl.php
+ * @link   https://secure.php.net/manual/en/features.commandline.php
+ * @since  11.1
  */
 class JApplicationDaemon extends JApplicationCli
 {
 	/**
 	 * @var    array  The available POSIX signals to be caught by default.
-	 * @see    http://php.net/manual/pcntl.constants.php
+	 * @link   https://secure.php.net/manual/pcntl.constants.php
 	 * @since  11.1
 	 */
 	protected static $signals = array(
@@ -63,7 +63,7 @@ class JApplicationDaemon extends JApplicationCli
 		'SIGBABY',
 		'SIG_BLOCK',
 		'SIG_UNBLOCK',
-		'SIG_SETMASK'
+		'SIG_SETMASK',
 	);
 
 	/**
@@ -93,21 +93,21 @@ class JApplicationDaemon extends JApplicationCli
 	/**
 	 * Class constructor.
 	 *
-	 * @param   mixed  $input       An optional argument to provide dependency injection for the application's
-	 *                              input object.  If the argument is a JInputCli object that object will become
-	 *                              the application's input object, otherwise a default input object is created.
-	 * @param   mixed  $config      An optional argument to provide dependency injection for the application's
-	 *                              config object.  If the argument is a JRegistry object that object will become
-	 *                              the application's config object, otherwise a default config object is created.
-	 * @param   mixed  $dispatcher  An optional argument to provide dependency injection for the application's
-	 *                              event dispatcher.  If the argument is a JEventDispatcher object that object will become
-	 *                              the application's event dispatcher, if it is null then the default event dispatcher
-	 *                              will be created based on the application's loadDispatcher() method.
+	 * @param   JInputCli         $input       An optional argument to provide dependency injection for the application's
+	 *                                         input object.  If the argument is a JInputCli object that object will become
+	 *                                         the application's input object, otherwise a default input object is created.
+	 * @param   Registry          $config      An optional argument to provide dependency injection for the application's
+	 *                                         config object.  If the argument is a Registry object that object will become
+	 *                                         the application's config object, otherwise a default config object is created.
+	 * @param   JEventDispatcher  $dispatcher  An optional argument to provide dependency injection for the application's
+	 *                                         event dispatcher.  If the argument is a JEventDispatcher object that object will become
+	 *                                         the application's event dispatcher, if it is null then the default event dispatcher
+	 *                                         will be created based on the application's loadDispatcher() method.
 	 *
 	 * @since   11.1
 	 * @throws  RuntimeException
 	 */
-	public function __construct(JInputCli $input = null, JRegistry $config = null, JEventDispatcher $dispatcher = null)
+	public function __construct(JInputCli $input = null, Registry $config = null, JEventDispatcher $dispatcher = null)
 	{
 		// Verify that the process control extension for PHP is available.
 		// @codeCoverageIgnoreStart
@@ -130,6 +130,7 @@ class JApplicationDaemon extends JApplicationCli
 
 		// Set some system limits.
 		@set_time_limit($this->config->get('max_execution_time', 0));
+
 		if ($this->config->get('max_memory_limit') !== null)
 		{
 			ini_set('memory_limit', $this->config->get('max_memory_limit', '256M'));
@@ -329,12 +330,13 @@ class JApplicationDaemon extends JApplicationCli
 		/*
 		 * Setup the application runtime options.  By default our execution time limit is infinite obviously
 		 * because a daemon should be constantly running unless told otherwise.  The default limit for memory
-		 * usage is 128M, which admittedly is a little high, but remember it is a "limit" and PHP's memory
+		 * usage is 256M, which admittedly is a little high, but remember it is a "limit" and PHP's memory
 		 * management leaves a bit to be desired :-)
 		 */
 
 		// The maximum execution time of the application in seconds.  Zero is infinite.
 		$tmp = $this->config->get('max_execution_time');
+
 		if ($tmp !== null)
 		{
 			$this->config->set('max_execution_time', (int) $tmp);
@@ -342,6 +344,7 @@ class JApplicationDaemon extends JApplicationCli
 
 		// The maximum amount of memory the application can use.
 		$tmp = $this->config->get('max_memory_limit', '256M');
+
 		if ($tmp !== null)
 		{
 			$this->config->set('max_memory_limit', (string) $tmp);
@@ -446,6 +449,7 @@ class JApplicationDaemon extends JApplicationCli
 		if ($uid && (fileowner($file) != $uid) && (!@ chown($file, $uid)))
 		{
 			JLog::add('Unable to change user ownership of the process id file.', JLog::ERROR);
+
 			return false;
 		}
 
@@ -453,6 +457,7 @@ class JApplicationDaemon extends JApplicationCli
 		if ($gid && (filegroup($file) != $gid) && (!@ chgrp($file, $gid)))
 		{
 			JLog::add('Unable to change group ownership of the process id file.', JLog::ERROR);
+
 			return false;
 		}
 
@@ -466,6 +471,7 @@ class JApplicationDaemon extends JApplicationCli
 		if ($uid && (posix_getuid($file) != $uid) && (!@ posix_setuid($uid)))
 		{
 			JLog::add('Unable to change user ownership of the proccess.', JLog::ERROR);
+
 			return false;
 		}
 
@@ -473,6 +479,7 @@ class JApplicationDaemon extends JApplicationCli
 		if ($gid && (posix_getgid($file) != $gid) && (!@ posix_setgid($gid)))
 		{
 			JLog::add('Unable to change group ownership of the proccess.', JLog::ERROR);
+
 			return false;
 		}
 
@@ -499,6 +506,7 @@ class JApplicationDaemon extends JApplicationCli
 		if ($this->isActive())
 		{
 			JLog::add($this->name . ' daemon is still running. Exiting the application.', JLog::EMERGENCY);
+
 			return false;
 		}
 
@@ -530,6 +538,7 @@ class JApplicationDaemon extends JApplicationCli
 		catch (RuntimeException $e)
 		{
 			JLog::add('Unable to fork.', JLog::EMERGENCY);
+
 			return false;
 		}
 
@@ -537,6 +546,7 @@ class JApplicationDaemon extends JApplicationCli
 		if ($this->processId < 1)
 		{
 			JLog::add('The process id is invalid; the fork failed.', JLog::EMERGENCY);
+
 			return false;
 		}
 
@@ -547,17 +557,18 @@ class JApplicationDaemon extends JApplicationCli
 		if (!$this->writeProcessIdFile())
 		{
 			JLog::add('Unable to write the pid file at: ' . $this->config->get('application_pid_file'), JLog::EMERGENCY);
+
 			return false;
 		}
 
 		// Attempt to change the identity of user running the process.
 		if (!$this->changeIdentity())
 		{
-
 			// If the identity change was required then we need to return false.
 			if ($this->config->get('application_require_identity'))
 			{
 				JLog::add('Unable to change process owner.', JLog::CRITICAL);
+
 				return false;
 			}
 			else
@@ -697,6 +708,7 @@ class JApplicationDaemon extends JApplicationCli
 			if (!$this->pcntlSignal(constant($signal), array('JApplicationDaemon', 'signal')))
 			{
 				JLog::add(sprintf('Unable to reroute signal handler: %s', $signal), JLog::EMERGENCY);
+
 				return false;
 			}
 		}
@@ -772,22 +784,27 @@ class JApplicationDaemon extends JApplicationCli
 		if ($this->processId < 1)
 		{
 			JLog::add('The process id is invalid.', JLog::EMERGENCY);
+
 			return false;
 		}
 
 		// Get the application process id file path.
 		$file = $this->config->get('application_pid_file');
+
 		if (empty($file))
 		{
 			JLog::add('The process id file path is empty.', JLog::ERROR);
+
 			return false;
 		}
 
 		// Make sure that the folder where we are writing the process id file exists.
 		$folder = dirname($file);
+
 		if (!is_dir($folder) && !JFolder::create($folder))
 		{
 			JLog::add('Unable to create directory: ' . $folder, JLog::ERROR);
+
 			return false;
 		}
 
@@ -795,6 +812,7 @@ class JApplicationDaemon extends JApplicationCli
 		if (!file_put_contents($file, $this->processId))
 		{
 			JLog::add('Unable to write proccess id file: ' . $file, JLog::ERROR);
+
 			return false;
 		}
 
@@ -802,6 +820,7 @@ class JApplicationDaemon extends JApplicationCli
 		if (!chmod($file, 0644))
 		{
 			JLog::add('Unable to adjust permissions for the proccess id file: ' . $file, JLog::ERROR);
+
 			return false;
 		}
 
@@ -858,7 +877,7 @@ class JApplicationDaemon extends JApplicationCli
 	 * Method to install a signal handler.
 	 *
 	 * @param   integer   $signal   The signal number.
-	 * @param   callback  $handler  The signal handler which may be the name of a user created function,
+	 * @param   callable  $handler  The signal handler which may be the name of a user created function,
 	 *                              or method, or either of the two global constants SIG_IGN or SIG_DFL.
 	 * @param   boolean   $restart  Specifies whether system call restarting should be used when this
 	 *                              signal arrives.
@@ -869,7 +888,7 @@ class JApplicationDaemon extends JApplicationCli
 	 * @see     pcntl_signal()
 	 * @since   11.3
 	 */
-	protected function pcntlSignal($signal , $handler, $restart = true)
+	protected function pcntlSignal($signal, $handler, $restart = true)
 	{
 		return pcntl_signal($signal, $handler, $restart);
 	}

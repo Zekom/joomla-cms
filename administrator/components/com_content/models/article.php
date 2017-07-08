@@ -3,28 +3,47 @@
  * @package     Joomla.Administrator
  * @subpackage  com_content
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
-require_once JPATH_COMPONENT_ADMINISTRATOR.'/helpers/content.php';
+use Joomla\Registry\Registry;
+use Joomla\Utilities\ArrayHelper;
+
+JLoader::register('ContentHelper', JPATH_ADMINISTRATOR . '/components/com_content/helpers/content.php');
 
 /**
  * Item Model for an Article.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_content
- * @since       1.6
+ * @since  1.6
  */
 class ContentModelArticle extends JModelAdmin
 {
 	/**
-	 * @var		string	The prefix to use with controller messages.
-	 * @since	1.6
+	 * The prefix to use with controller messages.
+	 *
+	 * @var    string
+	 * @since  1.6
 	 */
 	protected $text_prefix = 'COM_CONTENT';
+
+	/**
+	 * The type alias for this content type (for example, 'com_content.article').
+	 *
+	 * @var    string
+	 * @since  3.2
+	 */
+	public $typeAlias = 'com_content.article';
+
+	/**
+	 * The context used for the associations table
+	 *
+	 * @var    string
+	 * @since  3.4.4
+	 */
+	protected $associationsContext = 'com_content.item';
 
 	/**
 	 * Batch copy items to a new category or current.
@@ -35,47 +54,16 @@ class ContentModelArticle extends JModelAdmin
 	 *
 	 * @return  mixed  An array of new IDs on success, boolean false on failure.
 	 *
-	 * @since	11.1
+	 * @since   11.1
 	 */
 	protected function batchCopy($value, $pks, $contexts)
 	{
 		$categoryId = (int) $value;
 
-		$table = $this->getTable();
-		$i = 0;
+		$newIds = array();
 
-		// Check that the category exists
-		if ($categoryId)
+		if (!$this->checkCategoryId($categoryId))
 		{
-			$categoryTable = JTable::getInstance('Category');
-			if (!$categoryTable->load($categoryId))
-			{
-				if ($error = $categoryTable->getError())
-				{
-					// Fatal error
-					$this->setError($error);
-					return false;
-				}
-				else
-				{
-					$this->setError(JText::_('JLIB_APPLICATION_ERROR_BATCH_MOVE_CATEGORY_NOT_FOUND'));
-					return false;
-				}
-			}
-		}
-
-		if (empty($categoryId))
-		{
-			$this->setError(JText::_('JLIB_APPLICATION_ERROR_BATCH_MOVE_CATEGORY_NOT_FOUND'));
-			return false;
-		}
-
-		// Check that the user has create permission for the component
-		$extension = JFactory::getApplication()->input->get('option', '');
-		$user = JFactory::getUser();
-		if (!$user->authorise('core.create', $extension . '.category.' . $categoryId))
-		{
-			$this->setError(JText::_('JLIB_APPLICATION_ERROR_BATCH_CANNOT_CREATE'));
 			return false;
 		}
 
@@ -85,15 +73,16 @@ class ContentModelArticle extends JModelAdmin
 			// Pop the first ID off the stack
 			$pk = array_shift($pks);
 
-			$table->reset();
+			$this->table->reset();
 
 			// Check that the row actually exists
-			if (!$table->load($pk))
+			if (!$this->table->load($pk))
 			{
-				if ($error = $table->getError())
+				if ($error = $this->table->getError())
 				{
 					// Fatal error
 					$this->setError($error);
+
 					return false;
 				}
 				else
@@ -105,50 +94,59 @@ class ContentModelArticle extends JModelAdmin
 			}
 
 			// Alter the title & alias
-			$data = $this->generateNewTitle($categoryId, $table->alias, $table->title);
-			$table->title = $data['0'];
-			$table->alias = $data['1'];
+			$data = $this->generateNewTitle($categoryId, $this->table->alias, $this->table->title);
+			$this->table->title = $data['0'];
+			$this->table->alias = $data['1'];
 
 			// Reset the ID because we are making a copy
-			$table->id = 0;
+			$this->table->id = 0;
+
+			// Reset hits because we are making a copy
+			$this->table->hits = 0;
+
+			// Unpublish because we are making a copy
+			$this->table->state = 0;
 
 			// New category ID
-			$table->catid = $categoryId;
+			$this->table->catid = $categoryId;
 
 			// TODO: Deal with ordering?
-			//$table->ordering	= 1;
+			// $table->ordering	= 1;
 
 			// Get the featured state
-			$featured = $table->featured;
+			$featured = $this->table->featured;
 
 			// Check the row.
-			if (!$table->check())
+			if (!$this->table->check())
 			{
-				$this->setError($table->getError());
+				$this->setError($this->table->getError());
+
 				return false;
 			}
 
+			$this->createTagsHelper($this->tagsObserver, $this->type, $pk, $this->typeAlias, $this->table);
+
 			// Store the row.
-			if (!$table->store())
+			if (!$this->table->store())
 			{
-				$this->setError($table->getError());
+				$this->setError($this->table->getError());
+
 				return false;
 			}
 
 			// Get the new item ID
-			$newId = $table->get('id');
+			$newId = $this->table->get('id');
 
 			// Add the new ID to the array
-			$newIds[$i]	= $newId;
-			$i++;
+			$newIds[$pk] = $newId;
 
 			// Check if the article was featured and update the #__content_frontpage table
 			if ($featured == 1)
 			{
 				$db = $this->getDbo();
-				$query = $db->getQuery(true);
-				$query->insert($db->quoteName('#__content_frontpage'));
-				$query->values($newId . ', 0');
+				$query = $db->getQuery(true)
+					->insert($db->quoteName('#__content_frontpage'))
+					->values($newId . ', 0');
 				$db->setQuery($query);
 				$db->execute();
 			}
@@ -163,87 +161,97 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * Method to test whether a record can be deleted.
 	 *
-	 * @param	object	$record	A record object.
+	 * @param   object  $record  A record object.
 	 *
-	 * @return	boolean	True if allowed to delete the record. Defaults to the permission set in the component.
-	 * @since	1.6
+	 * @return  boolean  True if allowed to delete the record. Defaults to the permission set in the component.
+	 *
+	 * @since   1.6
 	 */
 	protected function canDelete($record)
 	{
-		if (!empty($record->id)) {
-			if ($record->state != -2) {
-				return;
+		if (!empty($record->id))
+		{
+			if ($record->state != -2)
+			{
+				return false;
 			}
-			$user = JFactory::getUser();
-			return $user->authorise('core.delete', 'com_content.article.'.(int) $record->id);
+
+			return JFactory::getUser()->authorise('core.delete', 'com_content.article.' . (int) $record->id);
 		}
+
+		return false;
 	}
 
 	/**
 	 * Method to test whether a record can have its state edited.
 	 *
-	 * @param	object	$record	A record object.
+	 * @param   object  $record  A record object.
 	 *
-	 * @return	boolean	True if allowed to change the state of the record. Defaults to the permission set in the component.
-	 * @since	1.6
+	 * @return  boolean  True if allowed to change the state of the record. Defaults to the permission set in the component.
+	 *
+	 * @since   1.6
 	 */
 	protected function canEditState($record)
 	{
 		$user = JFactory::getUser();
 
 		// Check for existing article.
-		if (!empty($record->id)) {
-			return $user->authorise('core.edit.state', 'com_content.article.'.(int) $record->id);
+		if (!empty($record->id))
+		{
+			return $user->authorise('core.edit.state', 'com_content.article.' . (int) $record->id);
 		}
+
 		// New article, so check against the category.
-		elseif (!empty($record->catid)) {
-			return $user->authorise('core.edit.state', 'com_content.category.'.(int) $record->catid);
+		if (!empty($record->catid))
+		{
+			return $user->authorise('core.edit.state', 'com_content.category.' . (int) $record->catid);
 		}
+
 		// Default to component settings if neither article nor category known.
-		else {
-			return parent::canEditState('com_content');
-		}
+		return parent::canEditState($record);
 	}
 
 	/**
 	 * Prepare and sanitise the table data prior to saving.
 	 *
-	 * @param	JTable	A JTable object.
+	 * @param   JTable  $table  A JTable object.
 	 *
-	 * @return	void
-	 * @since	1.6
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	protected function prepareTable($table)
 	{
 		// Set the publish date to now
-		$db = $this->getDbo();
-		if($table->state == 1 && (int) $table->publish_up == 0) {
+		if ($table->state == 1 && (int) $table->publish_up == 0)
+		{
 			$table->publish_up = JFactory::getDate()->toSql();
 		}
 
-		if($table->state == 1 && intval($table->publish_down) == 0)
+		if ($table->state == 1 && intval($table->publish_down) == 0)
 		{
-			$table->publish_down = $db->getNullDate();
+			$table->publish_down = $this->getDbo()->getNullDate();
 		}
 
 		// Increment the content version number.
 		$table->version++;
 
 		// Reorder the articles within the category so the new article is first
-		if (empty($table->id)) {
-			$table->reorder('catid = '.(int) $table->catid.' AND state >= 0');
+		if (empty($table->id))
+		{
+			$table->reorder('catid = ' . (int) $table->catid . ' AND state >= 0');
 		}
 	}
 
 	/**
 	 * Returns a Table object, always creating it.
 	 *
-	 * @param	type	The table type to instantiate
-	 * @param	string	A prefix for the table class name. Optional.
-	 * @param	array	Configuration array for model. Optional.
+	 * @param   string  $type    The table type to instantiate
+	 * @param   string  $prefix  A prefix for the table class name. Optional.
+	 * @param   array   $config  Configuration array for model. Optional.
 	 *
-	 * @return	JTable	A database object
-	*/
+	 * @return  JTable    A database object
+	 */
 	public function getTable($type = 'Content', $prefix = 'JTable', $config = array())
 	{
 		return JTable::getInstance($type, $prefix, $config);
@@ -252,51 +260,54 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * Method to get a single record.
 	 *
-	 * @param	integer	The id of the primary key.
+	 * @param   integer  $pk  The id of the primary key.
 	 *
-	 * @return	mixed	Object on success, false on failure.
+	 * @return  mixed  Object on success, false on failure.
 	 */
 	public function getItem($pk = null)
 	{
-		if ($item = parent::getItem($pk)) {
+		if ($item = parent::getItem($pk))
+		{
 			// Convert the params field to an array.
-			$registry = new JRegistry;
-			$registry->loadString($item->attribs);
+			$registry = new Registry($item->attribs);
 			$item->attribs = $registry->toArray();
 
 			// Convert the metadata field to an array.
-			$registry = new JRegistry;
-			$registry->loadString($item->metadata);
+			$registry = new Registry($item->metadata);
 			$item->metadata = $registry->toArray();
 
 			// Convert the images field to an array.
-			$registry = new JRegistry;
-			$registry->loadString($item->images);
+			$registry = new Registry($item->images);
 			$item->images = $registry->toArray();
 
 			// Convert the urls field to an array.
-			$registry = new JRegistry;
-			$registry->loadString($item->urls);
+			$registry = new Registry($item->urls);
 			$item->urls = $registry->toArray();
 
 			$item->articletext = trim($item->fulltext) != '' ? $item->introtext . "<hr id=\"system-readmore\" />" . $item->fulltext : $item->introtext;
+
+			if (!empty($item->id))
+			{
+				$item->tags = new JHelperTags;
+				$item->tags->getTagIds($item->id, 'com_content.article');
+			}
 		}
 
 		// Load associated content items
-		$app = JFactory::getApplication();
-		$assoc = isset($app->item_associations) ? $app->item_associations : 0;
+		$assoc = JLanguageAssociations::isEnabled();
 
 		if ($assoc)
 		{
 			$item->associations = array();
 
-			if ($item->id != null) {
-				$associations = ContentHelper::getAssociations($item->id);
+			if ($item->id != null)
+			{
+				$associations = JLanguageAssociations::getAssociations('com_content', '#__content', 'com_content.item', $item->id);
 
-				foreach ($associations as $tag => $association) {
+				foreach ($associations as $tag => $association)
+				{
 					$item->associations[$tag] = $association->id;
 				}
-
 			}
 		}
 
@@ -306,37 +317,39 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * Method to get the record form.
 	 *
-	 * @param	array	$data		Data for the form.
-	 * @param	boolean	$loadData	True if the form is to load its own data (default case), false if not.
+	 * @param   array    $data      Data for the form.
+	 * @param   boolean  $loadData  True if the form is to load its own data (default case), false if not.
 	 *
-	 * @return	mixed	A JForm object on success, false on failure
-	 * @since	1.6
+	 * @return  JForm|boolean  A JForm object on success, false on failure
+	 *
+	 * @since   1.6
 	 */
 	public function getForm($data = array(), $loadData = true)
 	{
 		// Get the form.
 		$form = $this->loadForm('com_content.article', 'article', array('control' => 'jform', 'load_data' => $loadData));
-		if (empty($form)) {
+
+		if (empty($form))
+		{
 			return false;
 		}
+
 		$jinput = JFactory::getApplication()->input;
 
-		// The front end calls this model and uses a_id to avoid id clashes so we need to check for that first.
-		if ($jinput->get('a_id'))
-		{
-			$id = $jinput->get('a_id', 0);
-		}
-		// The back end uses id so we use that the rest of the time and set it to 0 by default.
-		else
-		{
-			$id = $jinput->get('id', 0);
-		}
+		/*
+		 * The front end calls this model and uses a_id to avoid id clashes so we need to check for that first.
+		 * The back end uses id so we use that the rest of the time and set it to 0 by default.
+		 */
+		$id = $jinput->get('a_id', $jinput->get('id', 0));
+
 		// Determine correct permissions to check.
 		if ($this->getState('article.id'))
 		{
 			$id = $this->getState('article.id');
+
 			// Existing record. Can only edit in selected categories.
 			$form->setFieldAttribute('catid', 'action', 'core.edit');
+
 			// Existing record. Can only edit own articles in selected categories.
 			$form->setFieldAttribute('catid', 'action', 'core.edit.own');
 		}
@@ -350,9 +363,8 @@ class ContentModelArticle extends JModelAdmin
 
 		// Check for existing article.
 		// Modify the form based on Edit State access controls.
-		if ($id != 0 && (!$user->authorise('core.edit.state', 'com_content.article.'.(int) $id))
-		|| ($id == 0 && !$user->authorise('core.edit.state', 'com_content'))
-		)
+		if ($id != 0 && (!$user->authorise('core.edit.state', 'com_content.article.' . (int) $id))
+			|| ($id == 0 && !$user->authorise('core.edit.state', 'com_content')))
 		{
 			// Disable fields for display.
 			$form->setFieldAttribute('featured', 'disabled', 'true');
@@ -368,7 +380,25 @@ class ContentModelArticle extends JModelAdmin
 			$form->setFieldAttribute('publish_up', 'filter', 'unset');
 			$form->setFieldAttribute('publish_down', 'filter', 'unset');
 			$form->setFieldAttribute('state', 'filter', 'unset');
+		}
 
+		// Prevent messing with article language and category when editing existing article with associations
+		$app = JFactory::getApplication();
+		$assoc = JLanguageAssociations::isEnabled();
+
+		// Check if article is associated
+		if ($this->getState('article.id') && $app->isClient('site') && $assoc)
+		{
+			$associations = JLanguageAssociations::getAssociations('com_content', '#__content', 'com_content.item', $id);
+
+			// Make fields read only
+			if (!empty($associations))
+			{
+				$form->setFieldAttribute('language', 'readonly', 'true');
+				$form->setFieldAttribute('catid', 'readonly', 'true');
+				$form->setFieldAttribute('language', 'filter', 'unset');
+				$form->setFieldAttribute('catid', 'filter', 'unset');
+			}
 		}
 
 		return $form;
@@ -377,8 +407,9 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * Method to get the data that should be injected in the form.
 	 *
-	 * @return	mixed	The data for the form.
-	 * @since	1.6
+	 * @return  mixed  The data for the form.
+	 *
+	 * @since   1.6
 	 */
 	protected function loadFormData()
 	{
@@ -386,115 +417,213 @@ class ContentModelArticle extends JModelAdmin
 		$app  = JFactory::getApplication();
 		$data = $app->getUserState('com_content.edit.article.data', array());
 
-		if (empty($data)) {
+		if (empty($data))
+		{
 			$data = $this->getItem();
 
-			// Prime some default values.
-			if ($this->getState('article.id') == 0) {
-				$data->set('catid', $app->input->getInt('catid', $app->getUserState('com_content.articles.filter.category_id')));
+			// Pre-select some filters (Status, Category, Language, Access) in edit form if those have been selected in Article Manager: Articles
+			if ($this->getState('article.id') == 0)
+			{
+				$filters = (array) $app->getUserState('com_content.articles.filter');
+				$data->set(
+					'state',
+					$app->input->getInt(
+						'state',
+						((isset($filters['published']) && $filters['published'] !== '') ? $filters['published'] : null)
+					)
+				);
+				$data->set('catid', $app->input->getInt('catid', (!empty($filters['category_id']) ? $filters['category_id'] : null)));
+				$data->set('language', $app->input->getString('language', (!empty($filters['language']) ? $filters['language'] : null)));
+				$data->set('access',
+					$app->input->getInt('access', (!empty($filters['access']) ? $filters['access'] : JFactory::getConfig()->get('access')))
+				);
 			}
 		}
+
+		// If there are params fieldsets in the form it will fail with a registry object
+		if (isset($data->params) && $data->params instanceof Registry)
+		{
+			$data->params = $data->params->toArray();
+		}
+
+		$this->preprocessData('com_content.article', $data);
 
 		return $data;
 	}
 
 	/**
+	 * Method to validate the form data.
+	 *
+	 * @param   JForm   $form   The form to validate against.
+	 * @param   array   $data   The data to validate.
+	 * @param   string  $group  The name of the field group to validate.
+	 *
+	 * @return  array|boolean  Array of filtered data if valid, false otherwise.
+	 *
+	 * @see     JFormRule
+	 * @see     JFilterInput
+	 * @since   3.7.0
+	 */
+	public function validate($form, $data, $group = null)
+	{
+		// Don't allow to change the users if not allowed to access com_users.
+		if (JFactory::getApplication()->isClient('administrator') && !JFactory::getUser()->authorise('core.manage', 'com_users'))
+		{
+			if (isset($data['created_by']))
+			{
+				unset($data['created_by']);
+			}
+
+			if (isset($data['modified_by']))
+			{
+				unset($data['modified_by']);
+			}
+		}
+
+		return parent::validate($form, $data, $group);
+	}
+
+	/**
 	 * Method to save the form data.
 	 *
-	 * @param	array	The form data.
+	 * @param   array  $data  The form data.
 	 *
-	 * @return	boolean	True on success.
-	 * @since	1.6
+	 * @return  boolean  True on success.
+	 *
+	 * @since   1.6
 	 */
 	public function save($data)
 	{
-		$app = JFactory::getApplication();
+		$input  = JFactory::getApplication()->input;
+		$filter = JFilterInput::getInstance();
+
+		if (isset($data['metadata']) && isset($data['metadata']['author']))
+		{
+			$data['metadata']['author'] = $filter->clean($data['metadata']['author'], 'TRIM');
+		}
+
+		if (isset($data['created_by_alias']))
+		{
+			$data['created_by_alias'] = $filter->clean($data['created_by_alias'], 'TRIM');
+		}
 
 		if (isset($data['images']) && is_array($data['images']))
 		{
-			$registry = new JRegistry;
-			$registry->loadArray($data['images']);
+			$registry = new Registry($data['images']);
+
 			$data['images'] = (string) $registry;
+		}
+
+		JLoader::register('CategoriesHelper', JPATH_ADMINISTRATOR . '/components/com_categories/helpers/categories.php');
+
+		// Cast catid to integer for comparison
+		$catid = (int) $data['catid'];
+
+		// Check if New Category exists
+		if ($catid > 0)
+		{
+			$catid = CategoriesHelper::validateCategoryId($data['catid'], 'com_content');
+		}
+
+		// Save New Categoryg
+		if ($catid == 0 && $this->canCreateCategory())
+		{
+			$table = array();
+			$table['title'] = $data['catid'];
+			$table['parent_id'] = 1;
+			$table['extension'] = 'com_content';
+			$table['language'] = $data['language'];
+			$table['published'] = 1;
+
+			// Create new category and get catid back
+			$data['catid'] = CategoriesHelper::createCategory($table);
 		}
 
 		if (isset($data['urls']) && is_array($data['urls']))
 		{
-			$registry = new JRegistry;
-			$registry->loadArray($data['urls']);
+			$check = $input->post->get('jform', array(), 'array');
+
+			foreach ($data['urls'] as $i => $url)
+			{
+				if ($url != false && ($i == 'urla' || $i == 'urlb' || $i == 'urlc'))
+				{
+					if (preg_match('~^#[a-zA-Z]{1}[a-zA-Z0-9-_:.]*$~', $check['urls'][$i]) == 1)
+					{
+						$data['urls'][$i] = $check['urls'][$i];
+					}
+					else
+					{
+						$data['urls'][$i] = JStringPunycode::urlToPunycode($url);
+					}
+				}
+			}
+
+			unset($check);
+
+			$registry = new Registry($data['urls']);
+
 			$data['urls'] = (string) $registry;
 		}
 
 		// Alter the title for save as copy
-		if ($app->input->get('task') == 'save2copy')
+		if ($input->get('task') == 'save2copy')
 		{
-			list($title, $alias) = $this->generateNewTitle($data['catid'], $data['alias'], $data['title']);
-			$data['title']	= $title;
-			$data['alias']	= $alias;
-		}
+			$origTable = clone $this->getTable();
+			$origTable->load($input->getInt('id'));
 
-		if (parent::save($data)) {
-
-			if (isset($data['featured'])) {
-				$this->featured($this->getState($this->getName().'.id'), $data['featured']);
+			if ($data['title'] == $origTable->title)
+			{
+				list($title, $alias) = $this->generateNewTitle($data['catid'], $data['alias'], $data['title']);
+				$data['title'] = $title;
+				$data['alias'] = $alias;
+			}
+			else
+			{
+				if ($data['alias'] == $origTable->alias)
+				{
+					$data['alias'] = '';
+				}
 			}
 
-			$assoc = isset($app->item_associations) ? $app->item_associations : 0;
-			if ($assoc)
+			$data['state'] = 0;
+		}
+
+		// Automatic handling of alias for empty fields
+		if (in_array($input->get('task'), array('apply', 'save', 'save2new')) && (!isset($data['id']) || (int) $data['id'] == 0))
+		{
+			if ($data['alias'] == null)
 			{
-				$id = (int) $this->getState($this->getName() . '.id');
-				$item = $this->getItem($id);
-
-				// Adding self to the association
-				$associations = $data['associations'];
-
-				foreach ($associations as $tag => $id)
+				if (JFactory::getConfig()->get('unicodeslugs') == 1)
 				{
-					if (empty($id)) {
-						unset($associations[$tag]);
-					}
+					$data['alias'] = JFilterOutput::stringURLUnicodeSlug($data['title']);
+				}
+				else
+				{
+					$data['alias'] = JFilterOutput::stringURLSafe($data['title']);
 				}
 
-				// Detecting all item menus
-				$all_language = $item->language == '*';
+				$table = JTable::getInstance('Content', 'JTable');
 
-				if ($all_language && !empty($associations)) {
-					JError::raiseNotice(403, JText::_('COM_CONTENT_ERROR_ALL_LANGUAGE_ASSOCIATED'));
+				if ($table->load(array('alias' => $data['alias'], 'catid' => $data['catid'])))
+				{
+					$msg = JText::_('COM_CONTENT_SAVE_WARNING');
 				}
 
-				$associations[$item->language] = $item->id;
+				list($title, $alias) = $this->generateNewTitle($data['catid'], $data['alias'], $data['title']);
+				$data['alias'] = $alias;
 
-				// Deleting old association for these items
-				$db = JFactory::getDbo();
-				$query = $db->getQuery(true);
-				$query->delete('#__associations');
-				$query->where('context='.$db->quote('com_content.item'));
-				$query->where('id IN ('.implode(',', $associations).')');
-				$db->setQuery($query);
-				$db->execute();
-
-				if ($error = $db->getErrorMsg()) {
-					$this->setError($error);
-					return false;
+				if (isset($msg))
+				{
+					JFactory::getApplication()->enqueueMessage($msg, 'warning');
 				}
+			}
+		}
 
-				if (!$all_language && count($associations)) {
-					// Adding new association for these items
-					$key = md5(json_encode($associations));
-					$query->clear();
-					$query->insert('#__associations');
-
-					foreach ($associations as $tag => $id) {
-						$query->values($id.','.$db->quote('com_content.item') . ',' . $db->quote($key));
-					}
-
-					$db->setQuery($query);
-					$db->execute();
-
-					if ($error = $db->getErrorMsg()) {
-						$this->setError($error);
-						return false;
-					}
-				}
+		if (parent::save($data))
+		{
+			if (isset($data['featured']))
+			{
+				$this->featured($this->getState($this->getName() . '.id'), $data['featured']);
 			}
 
 			return true;
@@ -506,73 +635,84 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * Method to toggle the featured setting of articles.
 	 *
-	 * @param	array	The ids of the items to toggle.
-	 * @param	int		The value to toggle to.
+	 * @param   array    $pks    The ids of the items to toggle.
+	 * @param   integer  $value  The value to toggle to.
 	 *
-	 * @return	boolean	True on success.
+	 * @return  boolean  True on success.
 	 */
 	public function featured($pks, $value = 0)
 	{
 		// Sanitize the ids.
 		$pks = (array) $pks;
-		JArrayHelper::toInteger($pks);
+		$pks = ArrayHelper::toInteger($pks);
 
-		if (empty($pks)) {
+		if (empty($pks))
+		{
 			$this->setError(JText::_('COM_CONTENT_NO_ITEM_SELECTED'));
+
 			return false;
 		}
 
 		$table = $this->getTable('Featured', 'ContentTable');
 
-		try {
+		try
+		{
 			$db = $this->getDbo();
-
-			$db->setQuery(
-				'UPDATE #__content' .
-				' SET featured = '.(int) $value.
-				' WHERE id IN ('.implode(',', $pks).')'
-			);
+			$query = $db->getQuery(true)
+				->update($db->quoteName('#__content'))
+				->set('featured = ' . (int) $value)
+				->where('id IN (' . implode(',', $pks) . ')');
+			$db->setQuery($query);
 			$db->execute();
 
 			if ((int) $value == 0)
 			{
 				// Adjust the mapping table.
 				// Clear the existing features settings.
-				$db->setQuery(
-					'DELETE FROM #__content_frontpage' .
-					' WHERE content_id IN ('.implode(',', $pks).')'
-				);
+				$query = $db->getQuery(true)
+					->delete($db->quoteName('#__content_frontpage'))
+					->where('content_id IN (' . implode(',', $pks) . ')');
+				$db->setQuery($query);
 				$db->execute();
-			} else {
-				// first, we find out which of our new featured articles are already featured.
-				$query = $db->getQuery(true);
-				$query->select('f.content_id');
-				$query->from('#__content_frontpage AS f');
-				$query->where('content_id IN ('.implode(',', $pks).')');
-				//echo $query;
+			}
+			else
+			{
+				// First, we find out which of our new featured articles are already featured.
+				$query = $db->getQuery(true)
+					->select('f.content_id')
+					->from('#__content_frontpage AS f')
+					->where('content_id IN (' . implode(',', $pks) . ')');
 				$db->setQuery($query);
 
-				$old_featured = $db->loadColumn();
+				$oldFeatured = $db->loadColumn();
 
-				// we diff the arrays to get a list of the articles that are newly featured
-				$new_featured = array_diff($pks, $old_featured);
+				// We diff the arrays to get a list of the articles that are newly featured
+				$newFeatured = array_diff($pks, $oldFeatured);
 
 				// Featuring.
 				$tuples = array();
-				foreach ($new_featured as $pk) {
-					$tuples[] = '('.$pk.', 0)';
+
+				foreach ($newFeatured as $pk)
+				{
+					$tuples[] = $pk . ', 0';
 				}
-				if (count($tuples)) {
-					$db->setQuery(
-						'INSERT INTO #__content_frontpage ('.$db->quoteName('content_id').', '.$db->quoteName('ordering').')' .
-						' VALUES '.implode(',', $tuples)
-					);
+
+				if (count($tuples))
+				{
+					$columns = array('content_id', 'ordering');
+					$query = $db->getQuery(true)
+						->insert($db->quoteName('#__content_frontpage'))
+						->columns($db->quoteName($columns))
+						->values($tuples);
+					$db->setQuery($query);
 					$db->execute();
 				}
 			}
-
-		} catch (Exception $e) {
+		}
+		catch (Exception $e)
+		{
 			$this->setError($e->getMessage());
+
 			return false;
 		}
 
@@ -586,57 +726,62 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * A protected method to get a set of ordering conditions.
 	 *
-	 * @param	object	A record object.
+	 * @param   object  $table  A record object.
 	 *
-	 * @return	array	An array of conditions to add to add to ordering queries.
-	 * @since	1.6
+	 * @return  array  An array of conditions to add to add to ordering queries.
+	 *
+	 * @since   1.6
 	 */
 	protected function getReorderConditions($table)
 	{
-		$condition = array();
-		$condition[] = 'catid = '.(int) $table->catid;
-		return $condition;
+		return array('catid = ' . (int) $table->catid);
 	}
 
 	/**
-	 * Auto-populate the model state.
+	 * Allows preprocessing of the JForm object.
 	 *
-	 * Note. Calling getState in this method will result in recursion.
+	 * @param   JForm   $form   The form object
+	 * @param   array   $data   The data to be merged into the form object
+	 * @param   string  $group  The plugin group to be executed
 	 *
-	 * @return	void
-	 * @since	3.0
+	 * @return  void
+	 *
+	 * @since   3.0
 	 */
 	protected function preprocessForm(JForm $form, $data, $group = 'content')
 	{
+		if ($this->canCreateCategory())
+		{
+			$form->setFieldAttribute('catid', 'allowAdd', 'true');
+		}
+
 		// Association content items
-		$app = JFactory::getApplication();
-		$assoc = isset($app->item_associations) ? $app->item_associations : 0;
-		if ($assoc) {
-			$languages = JLanguageHelper::getLanguages('lang_code');
+		if (JLanguageAssociations::isEnabled())
+		{
+			$languages = JLanguageHelper::getContentLanguages(false, true, null, 'ordering', 'asc');
 
-			// force to array (perhaps move to $this->loadFormData())
-			$data = (array) $data;
-
-			$addform = new SimpleXMLElement('<form />');
-			$fields = $addform->addChild('fields');
-			$fields->addAttribute('name', 'associations');
-			$fieldset = $fields->addChild('fieldset');
-			$fieldset->addAttribute('name', 'item_associations');
-			$fieldset->addAttribute('description', 'COM_CONTENT_ITEM_ASSOCIATIONS_FIELDSET_DESC');
-			$add = false;
-			foreach ($languages as $tag => $language)
+			if (count($languages) > 1)
 			{
-				if (empty($data['language']) || $tag != $data['language']) {
-					$add = true;
+				$addform = new SimpleXMLElement('<form />');
+				$fields = $addform->addChild('fields');
+				$fields->addAttribute('name', 'associations');
+				$fieldset = $fields->addChild('fieldset');
+				$fieldset->addAttribute('name', 'item_associations');
+
+				foreach ($languages as $language)
+				{
 					$field = $fieldset->addChild('field');
-					$field->addAttribute('name', $tag);
+					$field->addAttribute('name', $language->lang_code);
 					$field->addAttribute('type', 'modal_article');
-					$field->addAttribute('language', $tag);
+					$field->addAttribute('language', $language->lang_code);
 					$field->addAttribute('label', $language->title);
 					$field->addAttribute('translate_label', 'false');
+					$field->addAttribute('select', 'true');
+					$field->addAttribute('new', 'true');
+					$field->addAttribute('edit', 'true');
+					$field->addAttribute('clear', 'true');
 				}
-			}
-			if ($add) {
+
 				$form->load($addform, false);
 			}
 		}
@@ -647,7 +792,12 @@ class ContentModelArticle extends JModelAdmin
 	/**
 	 * Custom clean the cache of com_content and content modules
 	 *
-	 * @since	1.6
+	 * @param   string   $group      The cache group
+	 * @param   integer  $client_id  The ID of the client
+	 *
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	protected function cleanCache($group = null, $client_id = 0)
 	{
@@ -658,5 +808,56 @@ class ContentModelArticle extends JModelAdmin
 		parent::cleanCache('mod_articles_latest');
 		parent::cleanCache('mod_articles_news');
 		parent::cleanCache('mod_articles_popular');
+	}
+
+	/**
+	 * Void hit function for pagebreak when editing content from frontend
+	 *
+	 * @return  void
+	 *
+	 * @since   3.6.0
+	 */
+	public function hit()
+	{
+		return;
+	}
+
+	/**
+	 * Is the user allowed to create an on the fly category?
+	 *
+	 * @return  boolean
+	 *
+	 * @since   3.6.1
+	 */
+	private function canCreateCategory()
+	{
+		return JFactory::getUser()->authorise('core.create', 'com_content');
+	}
+
+	/**
+	 * Delete #__content_frontpage items if the deleted articles was featured
+	 *
+	 * @param   object  &$pks  The primary key related to the contents that was deleted.
+	 *
+	 * @return  boolean
+	 *
+	 * @since   3.7.0
+	 */
+	public function delete(&$pks)
+	{
+		$return = parent::delete($pks);
+
+		if ($return)
+		{
+			// Now check to see if this articles was featured if so delete it from the #__content_frontpage table
+			$db = JFactory::getDbo();
+			$query = $db->getQuery(true)
+				->delete($db->quoteName('#__content_frontpage'))
+				->where('content_id IN (' . implode(',', $pks) . ')');
+			$db->setQuery($query);
+			$db->execute();
+		}
+
+		return $return;
 	}
 }

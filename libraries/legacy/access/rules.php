@@ -3,8 +3,8 @@
  * @package     Joomla.Legacy
  * @subpackage  Access
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,10 +12,8 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Deprecated class placeholder. You should use JAccessRules instead.
  *
- * @package     Joomla.Legacy
- * @subpackage  Access
- * @since       11.1
- * @deprecated  12.3
+ * @since       1.6
+ * @deprecated  2.5
  */
 class JRules extends JAccessRules
 {
@@ -27,8 +25,8 @@ class JRules extends JAccessRules
 	 *
 	 * @param   mixed  $input  A JSON format string (probably from the database) or a nested array.
 	 *
-	 * @since   11.1
-	 * @deprecated  12.3
+	 * @since   1.6
+	 * @deprecated  2.5
 	 */
 	public function __construct($input = '')
 	{

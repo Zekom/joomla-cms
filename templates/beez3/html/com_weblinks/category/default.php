@@ -3,13 +3,14 @@
  * @package     Joomla.Site
  * @subpackage  com_weblinks
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
 JHtml::addIncludePath(JPATH_COMPONENT.'/helpers');
+JHtml::_('behavior.caption');
 ?>
 <div class="weblink-category<?php echo $this->pageclass_sfx;?>">
 <?php if ($this->params->get('show_page_heading')) : ?>
@@ -17,9 +18,9 @@ JHtml::addIncludePath(JPATH_COMPONENT.'/helpers');
 	<?php echo $this->escape($this->params->get('page_heading')); ?>
 </h1>
 <?php endif; ?>
-<?php if($this->params->get('show_category_title', 1)) : ?>
+<?php if ($this->params->get('show_category_title', 1)) : ?>
 <h2>
-	<?php echo JHtml::_('content.prepare', $this->category->title, '', 'com_weblinks.category'); ?>
+	<?php echo JHtml::_('content.prepare', $this->category->title, '', 'com_weblinks.category.title'); ?>
 </h2>
 <?php endif; ?>
 <?php if ($this->params->get('show_description', 1) || $this->params->def('show_description_image', 1)) : ?>
@@ -34,7 +35,7 @@ JHtml::addIncludePath(JPATH_COMPONENT.'/helpers');
 	</div>
 <?php endif; ?>
 <?php echo $this->loadTemplate('items'); ?>
-<?php if (!empty($this->children[$this->category->id])&& $this->maxLevel != 0) : ?>
+<?php if (!empty($this->children[$this->category->id]) && $this->maxLevel != 0) : ?>
 	<div class="cat-children">
 	<h3><?php echo JText::_('JGLOBAL_SUBCATEGORIES'); ?></h3>
 	<?php echo $this->loadTemplate('children'); ?>

@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Crypt
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -12,17 +12,24 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Joomla Platform Password Crypter
  *
- * @package     Joomla.Platform
- * @subpackage  Crypt
  * @since       12.2
+ * @deprecated  4.0  Use PHP 5.5's native password hashing API
  */
 class JCryptPasswordSimple implements JCryptPassword
 {
 	/**
 	 * @var    integer  The cost parameter for hashing algorithms.
 	 * @since  12.2
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
 	 */
 	protected $cost = 10;
+
+	/**
+	 * @var    string   The default hash type
+	 * @since  12.3
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
+	 */
+	protected $defaultType = '$2y$';
 
 	/**
 	 * Creates a password hash
@@ -30,41 +37,46 @@ class JCryptPasswordSimple implements JCryptPassword
 	 * @param   string  $password  The password to hash.
 	 * @param   string  $type      The hash type.
 	 *
-	 * @return  string  The hashed password.
+	 * @return  mixed  The hashed password or false if the password is too long.
 	 *
 	 * @since   12.2
+	 * @throws  InvalidArgumentException
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
 	 */
-	public function create($password, $type = JCryptPassword::BLOWFISH)
+	public function create($password, $type = null)
 	{
+		if (empty($type))
+		{
+			$type = $this->defaultType;
+		}
+
 		switch ($type)
 		{
+			case '$2a$':
 			case JCryptPassword::BLOWFISH:
-				$salt = $this->getSalt(22);
 
-				if (version_compare(PHP_VERSION, '5.3.7') >= 0)
+				$type = '$2a$';
+
+				if (JCrypt::hasStrongPasswordSupport())
 				{
-					$prefix = '$2y$';
-				}
-				else
-				{
-					$prefix = '$2a$';
+					$type = '$2y$';
 				}
 
-				$salt = $prefix . str_pad($this->cost, 2, '0', STR_PAD_LEFT) . '$' . $this->getSalt(22);
+				$salt = $type . str_pad($this->cost, 2, '0', STR_PAD_LEFT) . '$' . $this->getSalt(22);
 
-			return crypt($password, $salt);
+				return crypt($password, $salt);
 
 			case JCryptPassword::MD5:
 				$salt = $this->getSalt(12);
 
 				$salt = '$1$' . $salt;
 
-			return crypt($password, $salt);
+				return crypt($password, $salt);
 
 			case JCryptPassword::JOOMLA:
 				$salt = $this->getSalt(32);
 
-			return md5($password . $salt) . ':' . $salt;
+				return md5($password . $salt) . ':' . $salt;
 
 			default:
 				throw new InvalidArgumentException(sprintf('Hash type %s is not supported', $type));
@@ -80,6 +92,7 @@ class JCryptPasswordSimple implements JCryptPassword
 	 * @return  void
 	 *
 	 * @since   12.2
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
 	 */
 	public function setCost($cost)
 	{
@@ -94,12 +107,13 @@ class JCryptPasswordSimple implements JCryptPassword
 	 * @return  string  The string of random characters.
 	 *
 	 * @since   12.2
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
 	 */
 	protected function getSalt($length)
 	{
 		$bytes = ceil($length * 6 / 8);
 
-		$randomData = str_replace('+', '.', base64_encode(JCrypt::getRandomBytes($bytes)));
+		$randomData = str_replace('+', '.', base64_encode(JCrypt::genRandomBytes($bytes)));
 
 		return substr($randomData, 0, $length);
 	}
@@ -113,36 +127,74 @@ class JCryptPasswordSimple implements JCryptPassword
 	 * @return  boolean  True if the password is valid, false otherwise.
 	 *
 	 * @since   12.2
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
 	 */
 	public function verify($password, $hash)
 	{
 		// Check if the hash is a blowfish hash.
 		if (substr($hash, 0, 4) == '$2a$' || substr($hash, 0, 4) == '$2y$')
 		{
-			if (version_compare(PHP_VERSION, '5.3.7') >= 0)
-			{
-				$prefix = '$2y$';
-			}
-			else
-			{
-				$prefix = '$2a$';
-			}
-			$hash = $prefix . substr($hash, 4);
+			$type = '$2a$';
 
-			return (crypt($password, $hash) === $hash);
+			if (JCrypt::hasStrongPasswordSupport())
+			{
+				$type = '$2y$';
+			}
+
+			return password_verify($password, $hash);
 		}
 
 		// Check if the hash is an MD5 hash.
 		if (substr($hash, 0, 3) == '$1$')
 		{
-			return (crypt($password, $hash) === $hash);
+			return JCrypt::timingSafeCompare(crypt($password, $hash), $hash);
 		}
 
 		// Check if the hash is a Joomla hash.
 		if (preg_match('#[a-z0-9]{32}:[A-Za-z0-9]{32}#', $hash) === 1)
 		{
-			return md5($password . substr($hash, 33)) == substr($hash, 0, 32);
+			// Check the password
+			$parts = explode(':', $hash);
+			$salt  = @$parts[1];
+
+			// Compile the hash to compare
+			// If the salt is empty AND there is a ':' in the original hash, we must append ':' at the end
+			$testcrypt = md5($password . $salt) . ($salt ? ':' . $salt : (strpos($hash, ':') !== false ? ':' : ''));
+
+			return JCrypt::timingSafeCompare($hash, $testcrypt);
 		}
+
 		return false;
+	}
+
+	/**
+	 * Sets a default type
+	 *
+	 * @param   string  $type  The value to set as default.
+	 *
+	 * @return  void
+	 *
+	 * @since   12.3
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
+	 */
+	public function setDefaultType($type)
+	{
+		if (!empty($type))
+		{
+			$this->defaultType = $type;
+		}
+	}
+
+	/**
+	 * Gets the default type
+	 *
+	 * @return   string  $type  The default type
+	 *
+	 * @since   12.3
+	 * @deprecated  4.0  Use PHP 5.5's native password hashing API
+	 */
+	public function getDefaultType()
+	{
+		return $this->defaultType;
 	}
 }

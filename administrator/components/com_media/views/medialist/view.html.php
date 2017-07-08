@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_media
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,80 +12,52 @@ defined('_JEXEC') or die;
 /**
  * HTML View class for the Media component
  *
- * @package     Joomla.Administrator
- * @subpackage  com_media
- * @since       1.0
+ * @since  1.0
  */
 class MediaViewMediaList extends JViewLegacy
 {
+	/**
+	 * Execute and display a template script.
+	 *
+	 * @param   string  $tpl  The name of the template file to parse; automatically searches through the template paths.
+	 *
+	 * @return  mixed  A string if successful, otherwise an Error object.
+	 *
+	 * @since   1.0
+	 */
 	public function display($tpl = null)
 	{
+		$app = JFactory::getApplication();
+
+		if (!$app->isClient('administrator'))
+		{
+			return $app->enqueueMessage(JText::_('JERROR_ALERTNOAUTHOR'), 'warning');
+		}
+
 		// Do not allow cache
-		JResponse::allowCache(false);
+		$app->allowCache(false);
 
-		$app	= JFactory::getApplication();
-		$style = $app->getUserStateFromRequest('media.list.layout', 'layout', 'thumbs', 'word');
+		$this->images    = $this->get('images');
+		$this->documents = $this->get('documents');
+		$this->folders   = $this->get('folders');
+		$this->videos    = $this->get('videos');
+		$this->state     = $this->get('state');
 
-		$lang	= JFactory::getLanguage();
+		// Check for invalid folder name
+		if (empty($this->state->folder))
+		{
+			$dirname = JFactory::getApplication()->input->getPath('folder', '');
 
-		JHtml::_('behavior.framework', true);
+			if (!empty($dirname))
+			{
+				$dirname = htmlspecialchars($dirname, ENT_COMPAT, 'UTF-8');
+				JError::raiseWarning(100, JText::sprintf('COM_MEDIA_ERROR_UNABLE_TO_BROWSE_FOLDER_WARNDIRNAME', $dirname));
+			}
+		}
 
-		$document = JFactory::getDocument();
-		/*
-		$document->addStyleSheet('../media/media/css/medialist-'.$style.'.css');
-		if ($lang->isRTL()) :
-			$document->addStyleSheet('../media/media/css/medialist-'.$style.'_rtl.css');
-		endif;
-		*/
-		$document->addScriptDeclaration("
-		window.addEvent('domready', function() {
-			window.parent.document.updateUploader();
-			$$('a.img-preview').each(function(el) {
-				el.addEvent('click', function(e) {
-					new Event(e).stop();
-					window.top.document.preview.fromElement(el);
-				});
-			});
-		});");
-
-		$images = $this->get('images');
-		$documents = $this->get('documents');
-		$folders = $this->get('folders');
-		$state = $this->get('state');
-
-		$this->baseURL = JURI::root();
-		$this->images = &$images;
-		$this->documents = &$documents;
-		$this->folders = &$folders;
-		$this->state = &$state;
+		$user = JFactory::getUser();
+		$this->canDelete = $user->authorise('core.delete', 'com_media');
 
 		parent::display($tpl);
-	}
-
-	function setFolder($index = 0)
-	{
-		if (isset($this->folders[$index])) {
-			$this->_tmp_folder = &$this->folders[$index];
-		} else {
-			$this->_tmp_folder = new JObject;
-		}
-	}
-
-	function setImage($index = 0)
-	{
-		if (isset($this->images[$index])) {
-			$this->_tmp_img = &$this->images[$index];
-		} else {
-			$this->_tmp_img = new JObject;
-		}
-	}
-
-	function setDoc($index = 0)
-	{
-		if (isset($this->documents[$index])) {
-			$this->_tmp_doc = &$this->documents[$index];
-		} else {
-			$this->_tmp_doc = new JObject;
-		}
 	}
 }

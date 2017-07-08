@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  Toolbar
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Renders a standard button with a confirm dialog
  *
- * @package     Joomla.Libraries
- * @subpackage  Toolbar
- * @since       3.0
+ * @since  3.0
  */
 class JToolbarButtonConfirm extends JToolbarButton
 {
@@ -42,24 +40,24 @@ class JToolbarButtonConfirm extends JToolbarButton
 	 */
 	public function fetchButton($type = 'Confirm', $msg = '', $name = '', $text = '', $task = '', $list = true, $hideMenu = false)
 	{
-		$text = JText::_($text);
-		$msg = JText::_($msg, true);
-		$class = $this->fetchIconClass($name);
-		$doTask = $this->_getCommand($msg, $name, $task, $list);
+		// Store all data to the options array for use with JLayout
+		$options = array();
+		$options['text'] = JText::_($text);
+		$options['msg'] = JText::_($msg, true);
+		$options['class'] = $this->fetchIconClass($name);
+		$options['doTask'] = $this->_getCommand($options['msg'], $name, $task, $list);
 
-		$html = "<button href=\"#\" onclick=\"$doTask\" class=\"btn btn-small\">\n";
-		$html .= "<span class=\"$class\">\n";
-		$html .= "</span>\n";
-		$html .= "$text\n";
-		$html .= "</button>\n";
+		// Instantiate a new JLayoutFile instance and render the layout
+		$layout = new JLayoutFile('joomla.toolbar.confirm');
 
-		return $html;
+		return $layout->render($options);
 	}
 
 	/**
 	 * Get the button CSS Id
 	 *
 	 * @param   string   $type      Button type
+	 * @param   string   $msg       Message to display
 	 * @param   string   $name      Name to be used as apart of the id
 	 * @param   string   $text      Button text
 	 * @param   string   $task      The task associated with the button
@@ -70,7 +68,7 @@ class JToolbarButtonConfirm extends JToolbarButton
 	 *
 	 * @since   3.0
 	 */
-	public function fetchId($type = 'Confirm', $name = '', $text = '', $task = '', $list = true, $hideMenu = false)
+	public function fetchId($type = 'Confirm', $msg = '', $name = '', $text = '', $task = '', $list = true, $hideMenu = false)
 	{
 		return $this->_parent->getName() . '-' . $name;
 	}
@@ -89,17 +87,15 @@ class JToolbarButtonConfirm extends JToolbarButton
 	 */
 	protected function _getCommand($msg, $name, $task, $list)
 	{
-		JHtml::_('behavior.framework');
-		$message = JText::_('JLIB_HTML_PLEASE_MAKE_A_SELECTION_FROM_THE_LIST');
-		$message = addslashes($message);
+		JText::script('JLIB_HTML_PLEASE_MAKE_A_SELECTION_FROM_THE_LIST');
+
+		$cmd = "if (confirm('" . $msg . "')) { Joomla.submitbutton('" . $task . "'); }";
 
 		if ($list)
 		{
-			$cmd = "if (document.adminForm.boxchecked.value==0){alert('$message');}else{if (confirm('$msg')){Joomla.submitbutton('$task');}}";
-		}
-		else
-		{
-			$cmd = "if (confirm('$msg')){Joomla.submitbutton('$task');}";
+			$alert = "alert(Joomla.JText._('JLIB_HTML_PLEASE_MAKE_A_SELECTION_FROM_THE_LIST'));";
+			$cmd   = "if (document.adminForm.boxchecked.value == 0) { " . $alert . " } else { " . $cmd . " }";
+			
 		}
 
 		return $cmd;

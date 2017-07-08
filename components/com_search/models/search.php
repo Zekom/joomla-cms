@@ -3,7 +3,7 @@
  * @package     Joomla.Site
  * @subpackage  com_search
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,9 +12,7 @@ defined('_JEXEC') or die;
 /**
  * Search Component Search Model
  *
- * @package     Joomla.Site
- * @subpackage  com_search
- * @since       1.5
+ * @since  1.5
  */
 class SearchModelSearch extends JModelLegacy
 {
@@ -55,7 +53,7 @@ class SearchModelSearch extends JModelLegacy
 	{
 		parent::__construct();
 
-		//Get configuration
+		// Get configuration
 		$app    = JFactory::getApplication();
 		$config = JFactory::getConfig();
 
@@ -63,55 +61,67 @@ class SearchModelSearch extends JModelLegacy
 		$this->setState('limit', $app->getUserStateFromRequest('com_search.limit', 'limit', $config->get('list_limit'), 'uint'));
 		$this->setState('limitstart', $app->input->get('limitstart', 0, 'uint'));
 
+		// Get parameters.
+		$params = $app->getParams();
+
+		if ($params->get('searchphrase') == 1)
+		{
+			$searchphrase = 'any';
+		}
+		elseif ($params->get('searchphrase') == 2)
+		{
+			$searchphrase = 'exact';
+		}
+		else
+		{
+			$searchphrase = 'all';
+		}
+
 		// Set the search parameters
 		$keyword  = urldecode($app->input->getString('searchword'));
-		$match    = $app->input->get('searchphrase', 'all', 'word');
-		$ordering = $app->input->get('ordering', 'newest', 'word');
+		$match    = $app->input->get('searchphrase', $searchphrase, 'word');
+		$ordering = $app->input->get('ordering', $params->get('ordering', 'newest'), 'word');
 		$this->setSearch($keyword, $match, $ordering);
 
-		//Set the search areas
-		$areas = $app->input->get('areas');
+		// Set the search areas
+		$areas = $app->input->get('areas', null, 'array');
 		$this->setAreas($areas);
 	}
 
 	/**
 	 * Method to set the search parameters
 	 *
+	 * @param   string  $keyword   string search string
+	 * @param   string  $match     matching option, exact|any|all
+	 * @param   string  $ordering  option, newest|oldest|popular|alpha|category
+	 *
+	 * @return  void
+	 *
 	 * @access	public
-	 * @param string search string
-	 * @param string mathcing option, exact|any|all
-	 * @param string ordering option, newest|oldest|popular|alpha|category
 	 */
 	public function setSearch($keyword, $match = 'all', $ordering = 'newest')
 	{
-		if (isset($keyword)) {
+		if (isset($keyword))
+		{
 			$this->setState('origkeyword', $keyword);
-			if($match !== 'exact') {
-				$keyword = preg_replace('#\xE3\x80\x80#s', ' ', $keyword);
+
+			if ($match !== 'exact')
+			{
+				$keyword = preg_replace('#\xE3\x80\x80#', ' ', $keyword);
 			}
+
 			$this->setState('keyword', $keyword);
 		}
 
-		if (isset($match)) {
+		if (isset($match))
+		{
 			$this->setState('match', $match);
 		}
 
-		if (isset($ordering)) {
+		if (isset($ordering))
+		{
 			$this->setState('ordering', $ordering);
 		}
-	}
-
-	/**
-	 * Method to set the search areas
-	 *
-	 * @access	public
-	 * @param	array	Active areas
-	 * @param	array	Search areas
-	 */
-	public function setAreas($active = array(), $search = array())
-	{
-		$this->_areas['active'] = $active;
-		$this->_areas['search'] = $search;
 	}
 
 	/**
@@ -137,14 +147,20 @@ class SearchModelSearch extends JModelLegacy
 			);
 
 			$rows = array();
-			foreach ($results as $result) {
+
+			foreach ($results as $result)
+			{
 				$rows = array_merge((array) $rows, (array) $result);
 			}
 
-			$this->_total	= count($rows);
-			if ($this->getState('limit') > 0) {
-				$this->_data	= array_splice($rows, $this->getState('limitstart'), $this->getState('limit'));
-			} else {
+			$this->_total = count($rows);
+
+			if ($this->getState('limit') > 0)
+			{
+				$this->_data = array_splice($rows, $this->getState('limitstart'), $this->getState('limit'));
+			}
+			else
+			{
 				$this->_data = $rows;
 			}
 		}
@@ -155,8 +171,9 @@ class SearchModelSearch extends JModelLegacy
 	/**
 	 * Method to get the total number of weblink items for the category
 	 *
-	 * @access public
-	 * @return integer
+	 * @access  public
+	 *
+	 * @return  integer
 	 */
 	public function getTotal()
 	{
@@ -164,10 +181,26 @@ class SearchModelSearch extends JModelLegacy
 	}
 
 	/**
+	 * Method to set the search areas
+	 *
+	 * @param   array  $active  areas
+	 * @param   array  $search  areas
+	 *
+	 * @return  void
+	 *
+	 * @access  public
+	 */
+	public function setAreas($active = array(), $search = array())
+	{
+		$this->_areas['active'] = $active;
+		$this->_areas['search'] = $search;
+	}
+
+	/**
 	 * Method to get a pagination object of the weblink items for the category
 	 *
 	 * @access public
-	 * @return integer
+	 * @return  integer
 	 */
 	public function getPagination()
 	{
@@ -183,6 +216,8 @@ class SearchModelSearch extends JModelLegacy
 	/**
 	 * Method to get the search areas
 	 *
+	 * @return int
+	 *
 	 * @since 1.5
 	 */
 	public function getAreas()
@@ -193,11 +228,13 @@ class SearchModelSearch extends JModelLegacy
 			$areas = array();
 
 			JPluginHelper::importPlugin('search');
-			$dispatcher = JEventDispatcher::getInstance();
+			$dispatcher  = JEventDispatcher::getInstance();
 			$searchareas = $dispatcher->trigger('onContentSearchAreas');
 
-			foreach ($searchareas as $area) {
-				if (is_array($area)) {
+			foreach ($searchareas as $area)
+			{
+				if (is_array($area))
+				{
 					$areas = array_merge($areas, $area);
 				}
 			}

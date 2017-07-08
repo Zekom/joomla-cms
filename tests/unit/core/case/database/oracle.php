@@ -2,8 +2,8 @@
 /**
  * @package    Joomla.Test
  *
- * @copyright  Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license    GNU General Public License version 2 or later; see LICENSE
+ * @copyright  Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license    GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 /**
@@ -15,7 +15,7 @@
 abstract class TestCaseDatabaseOracle extends TestCaseDatabase
 {
 	/**
-	 * @var    JDatabaseDriver  The active database driver being used for the tests.
+	 * @var    JDatabaseDriverOracle  The active database driver being used for the tests.
 	 * @since  12.1
 	 */
 	protected static $driver;
@@ -27,7 +27,7 @@ abstract class TestCaseDatabaseOracle extends TestCaseDatabase
 	private static $_options = array('driver' => 'oracle');
 
 	/**
-	 * @var    JDatabaseDriver  The saved database driver to be restored after these tests.
+	 * @var    JDatabaseDriverOracle  The saved database driver to be restored after these tests.
 	 * @since  12.1
 	 */
 	private static $_stash;
@@ -76,13 +76,19 @@ abstract class TestCaseDatabaseOracle extends TestCaseDatabase
 					$components = parse_url($v);
 					self::$_options['host'] = $components['host'];
 					self::$_options['port'] = $components['port'];
-					self::$_options['database'] = $components['path'];
+					self::$_options['database'] = ltrim($components['path'], '/');
 					break;
 				case 'user':
 					self::$_options['user'] = $v;
 					break;
 				case 'pass':
 					self::$_options['password'] = $v;
+					break;
+				case 'dbschema':
+					self::$_options['schema'] = $v;
+					break;
+				case 'prefix':
+					self::$_options['prefix'] = $v;
 					break;
 			}
 		}
@@ -122,7 +128,12 @@ abstract class TestCaseDatabaseOracle extends TestCaseDatabase
 	public static function tearDownAfterClass()
 	{
 		JFactory::$database = self::$_stash;
-		self::$driver = null;
+
+		if (static::$driver !== null)
+		{
+			static::$driver->disconnect();
+			static::$driver = null;
+		}
 	}
 
 	/**
@@ -136,7 +147,7 @@ abstract class TestCaseDatabaseOracle extends TestCaseDatabase
 	{
 		// Compile the connection DSN.
 		$dsn = 'oci:dbname=//' . self::$_options['host'] . ':' . self::$_options['port'] . '/' . self::$_options['database'];
-		$dsn .= ';charset=' . self::$_options['host'];
+		$dsn .= ';charset=' . self::$_options['charset'];
 
 		// Create the PDO object from the DSN and options.
 		$pdo = new PDO($dsn, self::$_options['user'], self::$_options['password']);

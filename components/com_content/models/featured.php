@@ -3,20 +3,18 @@
  * @package     Joomla.Site
  * @subpackage  com_content
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
-require_once __DIR__ . '/articles.php';
+JLoader::register('ContentModelArticles', __DIR__ . '/articles.php');
 
 /**
  * Frontpage Component Model
  *
- * @package     Joomla.Site
- * @subpackage  com_content
- * @since       1.5
+ * @since  1.5
  */
 class ContentModelFeatured extends ContentModelArticles
 {
@@ -32,7 +30,12 @@ class ContentModelFeatured extends ContentModelArticles
 	 *
 	 * Note. Calling getState in this method will result in recursion.
 	 *
-	 * @since	1.6
+	 * @param   string  $ordering   The field to order on.
+	 * @param   string  $direction  The direction to order on.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	protected function populateState($ordering = null, $direction = null)
 	{
@@ -52,38 +55,52 @@ class ContentModelFeatured extends ContentModelArticles
 
 		$this->setState('filter.frontpage', true);
 
-		if ((!$user->authorise('core.edit.state', 'com_content')) &&  (!$user->authorise('core.edit', 'com_content'))){
-			// filter on published for those who do not have edit or edit.state rights.
+		if ((!$user->authorise('core.edit.state', 'com_content')) &&  (!$user->authorise('core.edit', 'com_content')))
+		{
+			// Filter on published for those who do not have edit or edit.state rights.
 			$this->setState('filter.published', 1);
 		}
-		else {
+		else
+		{
 			$this->setState('filter.published', array(0, 1, 2));
 		}
 
-		// check for category selection
+		// Check for category selection
 		if ($params->get('featured_categories') && implode(',', $params->get('featured_categories')) == true)
 		{
 			$featuredCategories = $params->get('featured_categories');
 			$this->setState('filter.frontpage.categories', $featuredCategories);
 		}
+
+		$articleOrderby   = $params->get('orderby_sec', 'rdate');
+		$articleOrderDate = $params->get('order_date');
+		$categoryOrderby  = $params->def('orderby_pri', '');
+
+		$secondary = ContentHelperQuery::orderbySecondary($articleOrderby, $articleOrderDate);
+		$primary   = ContentHelperQuery::orderbyPrimary($categoryOrderby);
+
+		$this->setState('list.ordering', $primary . $secondary . ', a.created DESC');
+		$this->setState('list.direction', '');
 	}
 
 	/**
 	 * Method to get a list of articles.
 	 *
-	 * @return	mixed	An array of objects on success, false on failure.
+	 * @return  mixed  An array of objects on success, false on failure.
 	 */
 	public function getItems()
 	{
 		$params = clone $this->getState('params');
 		$limit = $params->get('num_leading_articles') + $params->get('num_intro_articles') + $params->get('num_links');
+
 		if ($limit > 0)
 		{
 			$this->setState('list.limit', $limit);
+
 			return parent::getItems();
 		}
-		return array();
 
+		return array();
 	}
 
 	/**
@@ -93,9 +110,9 @@ class ContentModelFeatured extends ContentModelArticles
 	 * different modules that might need different sets of data or different
 	 * ordering requirements.
 	 *
-	 * @param	string		$id	A prefix for the store id.
+	 * @param   string  $id  A prefix for the store id.
 	 *
-	 * @return	string		A store id.
+	 * @return  string  A store id.
 	 */
 	protected function getStoreId($id = '')
 	{
@@ -106,32 +123,20 @@ class ContentModelFeatured extends ContentModelArticles
 	}
 
 	/**
-	 * @return	JDatabaseQuery
+	 * Get the list of items.
+	 *
+	 * @return  JDatabaseQuery
 	 */
 	protected function getListQuery()
 	{
-		// Set the blog ordering
-		$params = $this->state->params;
-		$articleOrderby = $params->get('orderby_sec', 'rdate');
-		$articleOrderDate = $params->get('order_date');
-		$categoryOrderby = $params->def('orderby_pri', '');
-		$secondary = ContentHelperQuery::orderbySecondary($articleOrderby, $articleOrderDate) . ', ';
-		$primary = ContentHelperQuery::orderbyPrimary($categoryOrderby);
-
-		$orderby = $primary . ' ' . $secondary . ' a.created DESC ';
-		$this->setState('list.ordering', $orderby);
-		$this->setState('list.direction', '');
 		// Create a new query object.
 		$query = parent::getListQuery();
 
-		// Filter by frontpage.
-		if ($this->getState('filter.frontpage'))
-		{
-			$query->join('INNER', '#__content_frontpage AS fp ON fp.content_id = a.id');
-		}
-
 		// Filter by categories
-		if (is_array($featuredCategories = $this->getState('filter.frontpage.categories'))) {
+		$featuredCategories = $this->getState('filter.frontpage.categories');
+
+		if (is_array($featuredCategories) && !in_array('', $featuredCategories))
+		{
 			$query->where('a.catid IN (' . implode(',', $featuredCategories) . ')');
 		}
 

@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_plugins
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,9 +12,7 @@ defined('_JEXEC') or die;
 /**
  * Plugins component helper.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_plugins
- * @since       1.6
+ * @since  1.6
  */
 class PluginsHelper
 {
@@ -23,7 +21,9 @@ class PluginsHelper
 	/**
 	 * Configure the Linkbar.
 	 *
-	 * @param	string	The name of the active view.
+	 * @param   string  $vName  The name of the active view.
+	 *
+	 * @return  void
 	 */
 	public static function addSubmenu($vName)
 	{
@@ -33,34 +33,41 @@ class PluginsHelper
 	/**
 	 * Gets a list of the actions that can be performed.
 	 *
-	 * @return	JObject
+	 * @return  JObject
+	 *
+	 * @deprecated  3.2  Use JHelperContent::getActions() instead
 	 */
 	public static function getActions()
 	{
-		$user		= JFactory::getUser();
-		$result		= new JObject;
-		$assetName	= 'com_plugins';
-
-		$actions = JAccess::getActions($assetName);
-
-		foreach ($actions as $action) {
-			$result->set($action->name,	$user->authorise($action->name, $assetName));
+		// Log usage of deprecated function.
+		try
+		{
+			JLog::add(
+				sprintf('%s() is deprecated. Use JHelperContent::getActions() with new arguments order instead.', __METHOD__),
+				JLog::WARNING,
+				'deprecated'
+			);
+		}
+		catch (RuntimeException $exception)
+		{
+			// Informational log only
 		}
 
-		return $result;
+		// Get list of actions.
+		return JHelperContent::getActions('com_plugins');
 	}
 
 	/**
 	 * Returns an array of standard published state filter options.
 	 *
-	 * @return	string			The HTML code for the select tag
+	 * @return  string    The HTML code for the select tag
 	 */
 	public static function publishedOptions()
 	{
 		// Build the active state filter options.
-		$options	= array();
-		$options[]	= JHtml::_('select.option', '1', 'JENABLED');
-		$options[]	= JHtml::_('select.option', '0', 'JDISABLED');
+		$options = array();
+		$options[] = JHtml::_('select.option', '1', 'JENABLED');
+		$options[] = JHtml::_('select.option', '0', 'JDISABLED');
 
 		return $options;
 	}
@@ -68,17 +75,16 @@ class PluginsHelper
 	/**
 	 * Returns an array of standard published state filter options.
 	 *
-	 * @return	string			The HTML code for the select tag
+	 * @return  string    The HTML code for the select tag
 	 */
 	public static function folderOptions()
 	{
-		$db		= JFactory::getDbo();
-		$query	= $db->getQuery(true);
-
-		$query->select('DISTINCT(folder) AS value, folder AS text');
-		$query->from('#__extensions');
-		$query->where($db->quoteName('type').' = '.$db->quote('plugin'));
-		$query->order('folder');
+		$db = JFactory::getDbo();
+		$query = $db->getQuery(true)
+			->select('DISTINCT(folder) AS value, folder AS text')
+			->from('#__extensions')
+			->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+			->order('folder');
 
 		$db->setQuery($query);
 
@@ -94,20 +100,32 @@ class PluginsHelper
 		return $options;
 	}
 
+	/**
+	 * Parse the template file.
+	 *
+	 * @param   string  $templateBaseDir  Base path to the template directory.
+	 * @param   string  $templateDir      Template directory.
+	 *
+	 * @return  JObject
+	 */
 	public function parseXMLTemplateFile($templateBaseDir, $templateDir)
 	{
 		$data = new JObject;
 
-		// Check of the xml file exists
-		$filePath = JPath::clean($templateBaseDir.'/templates/'.$templateDir.'/templateDetails.xml');
-		if (is_file($filePath)) {
+		// Check of the xml file exists.
+		$filePath = JPath::clean($templateBaseDir . '/templates/' . $templateDir . '/templateDetails.xml');
+
+		if (is_file($filePath))
+		{
 			$xml = JInstaller::parseXMLInstallFile($filePath);
 
-			if ($xml['type'] != 'template') {
+			if ($xml['type'] != 'template')
+			{
 				return false;
 			}
 
-			foreach ($xml as $key => $value) {
+			foreach ($xml as $key => $value)
+			{
 				$data->set($key, $value);
 			}
 		}

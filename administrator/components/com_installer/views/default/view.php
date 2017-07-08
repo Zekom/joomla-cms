@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_installer
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,18 +12,16 @@ defined('_JEXEC') or die;
 /**
  * Extension Manager Default View
  *
- * @package     Joomla.Administrator
- * @subpackage  com_installer
- * @since       1.5
+ * @since  1.5
  */
 class InstallerViewDefault extends JViewLegacy
 {
 	/**
-	 * Constructor
+	 * Constructor.
 	 *
 	 * @param   array  $config  Configuration array
 	 *
-	 * @since	1.5
+	 * @since   1.5
 	 */
 	public function __construct($config = null)
 	{
@@ -34,32 +32,32 @@ class InstallerViewDefault extends JViewLegacy
 	}
 
 	/**
-	 * Display the view
+	 * Display the view.
 	 *
 	 * @param   string  $tpl  Template
 	 *
 	 * @return  void
 	 *
-	 * @since	1.5
+	 * @since   1.5
 	 */
 	public function display($tpl = null)
 	{
-		// Get data from the model
-		$state	= $this->get('State');
+		// Get data from the model.
+		$state = $this->get('State');
 
-		// Are there messages to display ?
-		$showMessage	= false;
+		// Are there messages to display?
+		$showMessage = false;
+
 		if (is_object($state))
 		{
-			$message1		= $state->get('message');
-			$message2		= $state->get('extension_message');
-			$showMessage	= ($message1 || $message2);
+			$message1    = $state->get('message');
+			$message2    = $state->get('extension_message');
+			$showMessage = ($message1 || $message2);
 		}
 
 		$this->showMessage = $showMessage;
-		$this->state = &$state;
+		$this->state       = &$state;
 
-		JHtml::_('behavior.tooltip');
 		$this->addToolbar();
 		parent::display($tpl);
 	}
@@ -69,24 +67,20 @@ class InstallerViewDefault extends JViewLegacy
 	 *
 	 * @return  void
 	 *
-	 * @since	1.6
+	 * @since   1.6
 	 */
 	protected function addToolbar()
 	{
-		$canDo	= InstallerHelper::getActions();
-		JToolbarHelper::title(JText::_('COM_INSTALLER_HEADER_' . $this->getName()), 'install.png');
+		$canDo = JHelperContent::getActions('com_installer');
+		JToolbarHelper::title(JText::_('COM_INSTALLER_HEADER_' . $this->getName()), 'puzzle install');
 
-		if ($canDo->get('core.admin'))
+		if ($canDo->get('core.admin') || $canDo->get('core.options'))
 		{
 			JToolbarHelper::preferences('com_installer');
 			JToolbarHelper::divider();
 		}
 
-		// Document
-		$document = JFactory::getDocument();
-		$document->setTitle(JText::_('COM_INSTALLER_TITLE_' . $this->getName()));
-
-		// Render side bar
+		// Render side bar.
 		$this->sidebar = JHtmlSidebar::render();
 	}
 }

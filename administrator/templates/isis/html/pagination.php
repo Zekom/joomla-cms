@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  Template.Isis
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -59,24 +59,6 @@ defined('_JEXEC') or die;
  * NOTE: If you override pagination_item_active OR pagination_item_inactive you MUST override them both
  */
 
-/**
- * Renders the pagination footer
- *
- * @param   array  $list  Array containing pagination footer
- *
- * @return  string  HTML markup for the full pagination footer
- *
- * @since   3.0
- */
-function pagination_list_footer($list)
-{
-	$html = "<div class=\"pagination pagination-toolbar\">\n";
-	$html .= $list['pageslinks'];
-	$html .= "\n<input type=\"hidden\" name=\"" . $list['prefix'] . "limitstart\" value=\"" . $list['limitstart'] . "\" />";
-	$html .= "\n</div>";
-
-	return $html;
-}
 
 /**
  * Renders the pagination list
@@ -116,16 +98,8 @@ function pagination_list_render($list)
 	$html .= $list['start']['data'];
 	$html .= $list['previous']['data'];
 
-	foreach($list['pages'] as $k => $page)
+	foreach ($list['pages'] as $k => $page)
 	{
-		if (in_array($k, range($range * $step - ($step + 1), $range * $step)))
-		{
-			if (($k % $step == 0 || $k == $range * $step - ($step + 1)) && $k != $currentPage && $k != $range * $step - $step)
-			{
-				$page['data'] = preg_replace('#(<a.*?>).*?(</a>)#', '$1...$2', $page['data']);
-			}
-		}
-
 		$html .= $page['data'];
 	}
 
@@ -147,34 +121,38 @@ function pagination_list_render($list)
  */
 function pagination_item_active(&$item)
 {
+	$class = '';
+
 	// Check for "Start" item
 	if ($item->text == JText::_('JLIB_HTML_START'))
 	{
-		$display = '<i class="icon-first"></i>';
+		$display = '<span class="icon-first"></span>';
 	}
 
 	// Check for "Prev" item
 	if ($item->text == JText::_('JPREV'))
 	{
-		$display = '<i class="icon-previous"></i>';
+		$item->text = JText::_('JPREVIOUS');
+		$display = '<span class="icon-previous"></span>';
 	}
 
 	// Check for "Next" item
 	if ($item->text == JText::_('JNEXT'))
 	{
-		$display = '<i class="icon-next"></i>';
+		$display = '<span class="icon-next"></span>';
 	}
 
 	// Check for "End" item
 	if ($item->text == JText::_('JLIB_HTML_END'))
 	{
-		$display = '<i class="icon-last"></i>';
+		$display = '<span class="icon-last"></span>';
 	}
 
 	// If the display object isn't set already, just render the item with its text
 	if (!isset($display))
 	{
 		$display = $item->text;
+		$class   = ' class="hidden-phone"';
 	}
 
 	if ($item->base > 0)
@@ -186,7 +164,14 @@ function pagination_item_active(&$item)
 		$limit = 'limitstart.value=0';
 	}
 
-	return '<li><a href="#" title="' . $item->text . '" onclick="document.adminForm.' . $item->prefix . $limit . '; Joomla.submitform();return false;">' . $display . '</a></li>';
+	$title = '';
+	if (!is_numeric($item->text))
+	{
+		JHtml::_('bootstrap.tooltip');
+		$title = ' class="hasTooltip" title="' . $item->text . '"';
+	}
+
+	return '<li' . $class . '><a' . $title . ' href="#" onclick="document.adminForm.' . $item->prefix . $limit . '; Joomla.submitform();return false;">' . $display . '</a></li>';
 }
 
 /**
@@ -203,33 +188,33 @@ function pagination_item_inactive(&$item)
 	// Check for "Start" item
 	if ($item->text == JText::_('JLIB_HTML_START'))
 	{
-		return '<li class="disabled"><a><i class="icon-first"></i></a></li>';
+		return '<li class="disabled"><a><span class="icon-first"></span></a></li>';
 	}
 
 	// Check for "Prev" item
 	if ($item->text == JText::_('JPREV'))
 	{
-		return '<li class="disabled"><a><i class="icon-previous"></i></a></li>';
+		return '<li class="disabled"><a><span class="icon-previous"></span></a></li>';
 	}
 
 	// Check for "Next" item
 	if ($item->text == JText::_('JNEXT'))
 	{
-		return '<li class="disabled"><a><i class="icon-next"></i></a></li>';
+		return '<li class="disabled"><a><span class="icon-next"></span></a></li>';
 	}
 
 	// Check for "End" item
 	if ($item->text == JText::_('JLIB_HTML_END'))
 	{
-		return '<li class="disabled"><a><i class="icon-last"></i></a></li>';
+		return '<li class="disabled"><a><span class="icon-last"></span></a></li>';
 	}
 
 	// Check if the item is the active page
-	if (isset($item->active) && ($item->active))
+	if (isset($item->active) && $item->active)
 	{
-		return '<li class="active"><a>' . $item->text . '</a></li>';
+		return '<li class="active hidden-phone"><a>' . $item->text . '</a></li>';
 	}
 
 	// Doesn't match any other condition, render a normal item
-	return '<li class="disabled"><a>' . $item->text . '</a></li>';
+	return '<li class="disabled hidden-phone"><a>' . $item->text . '</a></li>';
 }

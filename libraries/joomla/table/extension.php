@@ -3,19 +3,19 @@
  * @package     Joomla.Platform
  * @subpackage  Table
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
 defined('JPATH_PLATFORM') or die;
 
+use Joomla\Registry\Registry;
+use Joomla\Utilities\ArrayHelper;
+
 /**
  * Extension table
- * Replaces plugins table
  *
- * @package     Joomla.Platform
- * @subpackage  Table
- * @since       11.1
+ * @since  11.1
  */
 class JTableExtension extends JTable
 {
@@ -36,7 +36,7 @@ class JTableExtension extends JTable
 	 *
 	 * @return  boolean  True if the object is ok
 	 *
-	 * @see     JTable::check
+	 * @see     JTable::check()
 	 * @since   11.1
 	 */
 	public function check()
@@ -45,8 +45,23 @@ class JTableExtension extends JTable
 		if (trim($this->name) == '' || trim($this->element) == '')
 		{
 			$this->setError(JText::_('JLIB_DATABASE_ERROR_MUSTCONTAIN_A_TITLE_EXTENSION'));
+
 			return false;
 		}
+
+		if (!$this->extension_id)
+		{
+			if (!$this->custom_data)
+			{
+				$this->custom_data = '';
+			}
+
+			if (!$this->system_data)
+			{
+				$this->system_data = '';
+			}
+		}
+
 		return true;
 	}
 
@@ -59,22 +74,20 @@ class JTableExtension extends JTable
 	 *
 	 * @return  mixed  Null if operation was satisfactory, otherwise returns an error
 	 *
-	 * @see     JTable::bind
+	 * @see     JTable::bind()
 	 * @since   11.1
 	 */
 	public function bind($array, $ignore = '')
 	{
 		if (isset($array['params']) && is_array($array['params']))
 		{
-			$registry = new JRegistry;
-			$registry->loadArray($array['params']);
+			$registry = new Registry($array['params']);
 			$array['params'] = (string) $registry;
 		}
 
 		if (isset($array['control']) && is_array($array['control']))
 		{
-			$registry = new JRegistry;
-			$registry->loadArray($array['control']);
+			$registry = new Registry($array['control']);
 			$array['control'] = (string) $registry;
 		}
 
@@ -100,9 +113,10 @@ class JTableExtension extends JTable
 			$query->where($col . ' = ' . $this->_db->quote($val));
 		}
 
-		$query->select($this->_db->quoteName('extension_id'));
-		$query->from($this->_db->quoteName('#__extensions'));
+		$query->select($this->_db->quoteName('extension_id'))
+			->from($this->_db->quoteName('#__extensions'));
 		$this->_db->setQuery($query);
+
 		return $this->_db->loadResult();
 	}
 
@@ -125,7 +139,7 @@ class JTableExtension extends JTable
 		$k = $this->_tbl_key;
 
 		// Sanitize input.
-		JArrayHelper::toInteger($pks);
+		$pks = ArrayHelper::toInteger($pks);
 		$userId = (int) $userId;
 		$state = (int) $state;
 
@@ -140,6 +154,7 @@ class JTableExtension extends JTable
 			else
 			{
 				$this->setError(JText::_('JLIB_DATABASE_ERROR_NO_ROWS_SELECTED'));
+
 				return false;
 			}
 		}
@@ -157,13 +172,11 @@ class JTableExtension extends JTable
 			$checkin = ' AND (checked_out = 0 OR checked_out = ' . (int) $userId . ')';
 		}
 
-		// Get the JDatabaseQuery object
-		$query = $this->_db->getQuery(true);
-
 		// Update the publishing state for rows with the given primary keys.
-		$query->update($this->_db->quoteName($this->_tbl));
-		$query->set($this->_db->quoteName('enabled') . ' = ' . (int) $state);
-		$query->where('(' . $where . ')' . $checkin);
+		$query = $this->_db->getQuery(true)
+			->update($this->_db->quoteName($this->_tbl))
+			->set($this->_db->quoteName('enabled') . ' = ' . (int) $state)
+			->where('(' . $where . ')' . $checkin);
 		$this->_db->setQuery($query);
 		$this->_db->execute();
 
@@ -184,6 +197,7 @@ class JTableExtension extends JTable
 		}
 
 		$this->setError('');
+
 		return true;
 	}
 }

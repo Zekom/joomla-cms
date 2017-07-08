@@ -3,23 +3,23 @@
  * @package     Joomla.Administrator
  * @subpackage  mod_stats_admin
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
 /**
- * @package     Joomla.Administrator
- * @subpackage  mod_stats_admin
- * @since       3.0
+ * Helper class for admin stats module
+ *
+ * @since  3.0
  */
-class modStatsHelper
+class ModStatsHelper
 {
 	/**
 	 * Method to retrieve information about the site
 	 *
-	 * @param   JObject  $params  Params object
+	 * @param   JObject  &$params  Params object
 	 *
 	 * @return  array  Array containing site information
 	 *
@@ -38,6 +38,7 @@ class modStatsHelper
 		$increase   = $params->get('increase');
 
 		$i = 0;
+
 		if ($serverinfo)
 		{
 			$rows[$i]        = new stdClass;
@@ -59,7 +60,7 @@ class modStatsHelper
 			$i++;
 
 			$rows[$i]        = new stdClass;
-			$rows[$i]->title = JTEXT::_('MOD_STATS_TIME');
+			$rows[$i]->title = JText::_('MOD_STATS_TIME');
 			$rows[$i]->icon  = 'clock';
 			$rows[$i]->data  = JHtml::_('date', 'now', 'H:i');
 			$i++;
@@ -67,36 +68,43 @@ class modStatsHelper
 			$rows[$i]        = new stdClass;
 			$rows[$i]->title = JText::_('MOD_STATS_CACHING');
 			$rows[$i]->icon  = 'dashboard';
-			$rows[$i]->data  = $app->getCfg('caching') ? JText::_('JENABLED') : JText::_('JDISABLED');
+			$rows[$i]->data  = $app->get('caching') ? JText::_('JENABLED') : JText::_('JDISABLED');
 			$i++;
 
 			$rows[$i]        = new stdClass;
 			$rows[$i]->title = JText::_('MOD_STATS_GZIP');
 			$rows[$i]->icon  = 'lightning';
-			$rows[$i]->data  = $app->getCfg('gzip') ? JText::_('JENABLED') : JText::_('JDISABLED');
+			$rows[$i]->data  = $app->get('gzip') ? JText::_('JENABLED') : JText::_('JDISABLED');
 			$i++;
 		}
 
 		if ($siteinfo)
 		{
-			$query->select('COUNT(id) AS count_users');
-			$query->from('#__users');
+			$query->select('COUNT(id) AS count_users')
+				->from('#__users');
 			$db->setQuery($query);
-			$users = $db->loadResult();
+			try
+			{
+				$users = $db->loadResult();
+			}
+			catch (RuntimeException $e)
+			{
+				$users = false;
+			}
 
-			$query->clear();
-			$query->select('COUNT(id) AS count_items');
-			$query->from('#__content');
-			$query->where('state = 1');
+			$query->clear()
+				->select('COUNT(id) AS count_items')
+				->from('#__content')
+				->where('state = 1');
 			$db->setQuery($query);
-			$items = $db->loadResult();
-
-			$query->clear();
-			$query->select('COUNT(id) AS count_links ');
-			$query->from('#__weblinks');
-			$query->where('state = 1');
-			$db->setQuery($query);
-			$links = $db->loadResult();
+			try
+			{
+				$items = $db->loadResult();
+			}
+			catch (RuntimeException $e)
+			{
+				$items = false;
+			}
 
 			if ($users)
 			{
@@ -115,32 +123,54 @@ class modStatsHelper
 				$rows[$i]->data  = $items;
 				$i++;
 			}
-
-			if ($links)
-			{
-				$rows[$i]        = new stdClass;
-				$rows[$i]->title = JText::_('MOD_STATS_WEBLINKS');
-				$rows[$i]->icon  = 'out-2';
-				$rows[$i]->data  = $links;
-				$i++;
-			}
 		}
 
 		if ($counter)
 		{
-			$query->clear();
-			$query->select('SUM(hits) AS count_hits');
-			$query->from('#__content');
-			$query->where('state = 1');
+			$query->clear()
+				->select('SUM(hits) AS count_hits')
+				->from('#__content')
+				->where('state = 1');
 			$db->setQuery($query);
-			$hits = $db->loadResult();
+
+			try
+			{
+				$hits = $db->loadResult();
+			}
+			catch (RuntimeException $e)
+			{
+				$hits = false;
+			}
 
 			if ($hits)
 			{
 				$rows[$i]        = new stdClass;
 				$rows[$i]->title = JText::_('MOD_STATS_ARTICLES_VIEW_HITS');
 				$rows[$i]->icon  = 'eye';
-				$rows[$i]->data  = $hits + $increase;
+				$rows[$i]->data  = number_format($hits + $increase, 0, JText::_('DECIMALS_SEPARATOR'), JText::_('THOUSANDS_SEPARATOR'));
+				$i++;
+			}
+		}
+
+		// Include additional data defined by published system plugins
+		JPluginHelper::importPlugin('system');
+
+		$app    = JFactory::getApplication();
+		$arrays = (array) $app->triggerEvent('onGetStats', array('mod_stats_admin'));
+
+		foreach ($arrays as $response)
+		{
+			foreach ($response as $row)
+			{
+				// We only add a row if the title and data are given
+				if (isset($row['title']) && isset($row['data']))
+				{
+					$rows[$i]        = new stdClass;
+					$rows[$i]->title = $row['title'];
+					$rows[$i]->icon  = isset($row['icon']) ? $row['icon'] : 'info';
+					$rows[$i]->data  = $row['data'];
+					$i++;
+				}
 			}
 		}
 

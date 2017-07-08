@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Access
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * JAccessRules class.
  *
- * @package     Joomla.Platform
- * @subpackage  Access
- * @since       11.4
+ * @since  11.4
  */
 class JAccessRules
 {
@@ -170,7 +168,7 @@ class JAccessRules
 			return $this->data[$action]->allow($identity);
 		}
 
-		return null;
+		return;
 	}
 
 	/**
@@ -178,7 +176,7 @@ class JAccessRules
 	 *
 	 * @param   mixed  $identity  An integer representing the identity or an array of identities
 	 *
-	 * @return  object  Allowed actions for the identity or identities
+	 * @return  JObject  Allowed actions for the identity or identities
 	 *
 	 * @since   11.1
 	 */
@@ -186,6 +184,7 @@ class JAccessRules
 	{
 		// Sweep for the allowed actions.
 		$allowed = new JObject;
+
 		foreach ($this->data as $name => &$action)
 		{
 			if ($action->allow($identity))
@@ -193,6 +192,7 @@ class JAccessRules
 				$allowed->set($name, true);
 			}
 		}
+
 		return $allowed;
 	}
 
@@ -209,11 +209,12 @@ class JAccessRules
 
 		foreach ($this->data as $name => $rule)
 		{
-			// Convert the action to JSON, then back into an array otherwise
-			// re-encoding will quote the JSON for the identities in the action.
-			$temp[$name] = json_decode((string) $rule);
+			if ($data = $rule->getData())
+			{
+				$temp[$name] = $data;
+			}
 		}
 
-		return json_encode($temp);
+		return json_encode($temp, JSON_FORCE_OBJECT);
 	}
 }

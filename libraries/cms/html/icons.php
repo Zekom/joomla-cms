@@ -3,18 +3,16 @@
  * @package     Joomla.Libraries
  * @subpackage  HTML
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-defined('JPATH_BASE') or die;
+defined('JPATH_PLATFORM') or die;
 
 /**
  * Utility class for icons.
  *
- * @package     Joomla.Libraries
- * @subpackage  HTML
- * @since       2.5
+ * @since  2.5
  */
 abstract class JHtmlIcons
 {
@@ -30,17 +28,19 @@ abstract class JHtmlIcons
 	public static function buttons($buttons)
 	{
 		$html = array();
+
 		foreach ($buttons as $button)
 		{
 			$html[] = JHtml::_('icons.button', $button);
 		}
+
 		return implode($html);
 	}
 
 	/**
 	 * Method to generate html code for a list of buttons
 	 *
-	 * @param   array|object  $button  Button properties
+	 * @param   array  $button  Button properties
 	 *
 	 * @return  string
 	 *
@@ -48,8 +48,7 @@ abstract class JHtmlIcons
 	 */
 	public static function button($button)
 	{
-		$user = JFactory::getUser();
-		if (!empty($button['access']))
+		if (isset($button['access']))
 		{
 			if (is_bool($button['access']))
 			{
@@ -60,6 +59,8 @@ abstract class JHtmlIcons
 			}
 			else
 			{
+				// Get the user object to verify permissions
+				$user = JFactory::getUser();
 
 				// Take each pair of permission, context values.
 				for ($i = 0, $n = count($button['access']); $i < $n; $i += 2)
@@ -72,18 +73,9 @@ abstract class JHtmlIcons
 			}
 		}
 
-		$html[] = '<div class="row-fluid"' . (empty($button['id']) ? '' : (' id="' . $button['id'] . '"')) . '>';
-		$html[] = '<div class="span12">';
-		$html[] = '<a href="' . $button['link'] . '"';
-		$html[] = (empty($button['target']) ? '' : (' target="' . $button['target'] . '"'));
-		$html[] = (empty($button['onclick']) ? '' : (' onclick="' . $button['onclick'] . '"'));
-		$html[] = (empty($button['title']) ? '' : (' title="' . htmlspecialchars($button['title']) . '"'));
-		$html[] = '>';
-		$html[] = '<i class="icon-' . $button['image'] . '"></i> ';
-		$html[] = (empty($button['text'])) ? '' : ('<span>' . $button['text'] . '</span>');
-		$html[] = '</a>';
-		$html[] = '</div>';
-		$html[] = '</div>';
-		return implode($html);
+		// Instantiate a new JLayoutFile instance and render the layout
+		$layout = new JLayoutFile('joomla.quickicons.icon');
+
+		return $layout->render($button);
 	}
 }

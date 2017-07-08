@@ -3,26 +3,26 @@
  * @package     Joomla.Administrator
  * @subpackage  com_finder
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
+use Joomla\Utilities\ArrayHelper;
+
 /**
  * Indexer controller class for Finder.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_finder
- * @since       2.5
+ * @since  2.5
  */
 class FinderControllerFilter extends JControllerForm
 {
 	/**
 	 * Method to save a record.
 	 *
-	 * @param   string  $key     The name of the primary key of the URL variable. [optional]
-	 * @param   string  $urlVar  The name of the URL variable if different from the primary key (sometimes required to avoid router collisions). [optional]
+	 * @param   string  $key     The name of the primary key of the URL variable.
+	 * @param   string  $urlVar  The name of the URL variable if different from the primary key (sometimes required to avoid router collisions).
 	 *
 	 * @return  boolean  True if successful, false otherwise.
 	 *
@@ -35,7 +35,6 @@ class FinderControllerFilter extends JControllerForm
 
 		$app = JFactory::getApplication();
 		$input = $app->input;
-		$lang = JFactory::getLanguage();
 		$model = $this->getModel();
 		$table = $model->getTable();
 		$data = $input->post->get('jform', array(), 'array');
@@ -122,7 +121,7 @@ class FinderControllerFilter extends JControllerForm
 			// Push up to three validation messages out to the user.
 			for ($i = 0, $n = count($errors); $i < $n && $i < 3; $i++)
 			{
-				if (($errors[$i]) instanceof Exception)
+				if ($errors[$i] instanceof Exception)
 				{
 					$app->enqueueMessage($errors[$i]->getMessage(), 'warning');
 				}
@@ -136,7 +135,9 @@ class FinderControllerFilter extends JControllerForm
 			$app->setUserState($context . '.data', $data);
 
 			// Redirect back to the edit screen.
-			$this->setRedirect(JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend($recordId, $key), false));
+			$this->setRedirect(
+				JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend($recordId, $key), false)
+			);
 
 			return false;
 		}
@@ -144,7 +145,7 @@ class FinderControllerFilter extends JControllerForm
 		// Get and sanitize the filter data.
 		$validData['data'] = $input->post->get('t', array(), 'array');
 		$validData['data'] = array_unique($validData['data']);
-		JArrayHelper::toInteger($validData['data']);
+		$validData['data'] = ArrayHelper::toInteger($validData['data']);
 
 		// Remove any values of zero.
 		if (array_search(0, $validData['data'], true))
@@ -161,7 +162,9 @@ class FinderControllerFilter extends JControllerForm
 			// Redirect back to the edit screen.
 			$this->setError(JText::sprintf('JLIB_APPLICATION_ERROR_SAVE_FAILED', $model->getError()));
 			$this->setMessage($this->getError(), 'error');
-			$this->setRedirect(JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend($recordId, $key), false));
+			$this->setRedirect(
+				JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend($recordId, $key), false)
+			);
 
 			return false;
 		}
@@ -182,8 +185,8 @@ class FinderControllerFilter extends JControllerForm
 
 		$this->setMessage(
 			JText::_(
-				($lang->hasKey($this->text_prefix . ($recordId == 0 && $app->isSite() ? '_SUBMIT' : '') . '_SAVE_SUCCESS')
-				? $this->text_prefix : 'JLIB_APPLICATION') . ($recordId == 0 && $app->isSite() ? '_SUBMIT' : '') . '_SAVE_SUCCESS'
+				(JFactory::getLanguage()->hasKey($this->text_prefix . ($recordId == 0 && $app->isClient('site') ? '_SUBMIT' : '') . '_SAVE_SUCCESS')
+				? $this->text_prefix : 'JLIB_APPLICATION') . ($recordId == 0 && $app->isClient('site') ? '_SUBMIT' : '') . '_SAVE_SUCCESS'
 			)
 		);
 
@@ -198,7 +201,10 @@ class FinderControllerFilter extends JControllerForm
 				$model->checkout($recordId);
 
 				// Redirect back to the edit screen.
-				$this->setRedirect(JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend($recordId, $key), false));
+				$this->setRedirect(
+					JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend($recordId, $key), false)
+				);
+
 				break;
 
 			case 'save2new':
@@ -207,7 +213,10 @@ class FinderControllerFilter extends JControllerForm
 				$app->setUserState($context . '.data', null);
 
 				// Redirect back to the edit screen.
-				$this->setRedirect(JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend(null, $key), false));
+				$this->setRedirect(
+					JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_item . $this->getRedirectToItemAppend(null, $key), false)
+				);
+
 				break;
 
 			default:
@@ -216,7 +225,10 @@ class FinderControllerFilter extends JControllerForm
 				$app->setUserState($context . '.data', null);
 
 				// Redirect to the list screen.
-				$this->setRedirect(JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_list . $this->getRedirectToListAppend(), false));
+				$this->setRedirect(
+					JRoute::_('index.php?option=' . $this->option . '&view=' . $this->view_list . $this->getRedirectToListAppend(), false)
+				);
+
 				break;
 		}
 

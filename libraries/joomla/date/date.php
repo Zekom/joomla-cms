@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Date
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -13,6 +13,10 @@ defined('JPATH_PLATFORM') or die;
  * JDate is a class that stores a date and provides logic to manipulate
  * and render that date in a variety of formats.
  *
+ * @method  JDate|bool  add(DateInterval $interval)  Adds an amount of days, months, years, hours, minutes and seconds to a JDate object.
+ * @method  JDate|bool  sub(DateInterval $interval)  Subtracts an amount of days, months, years, hours, minutes and seconds from a JDate object.
+ * @method  JDate|bool  modify(string $modify)       Alter the timestamp of this object by incre/decre-menting in a format accepted by strtotime().
+ *
  * @property-read  string   $daysinmonth   t - Number of days in the given month.
  * @property-read  string   $dayofweek     N - ISO-8601 numeric representation of the day of the week.
  * @property-read  string   $dayofyear     z - The day of the year (starting from 0).
@@ -21,14 +25,13 @@ defined('JPATH_PLATFORM') or die;
  * @property-read  string   $hour          H - 24-hour format of an hour with leading zeros.
  * @property-read  string   $minute        i - Minutes with leading zeros.
  * @property-read  string   $second        s - Seconds with leading zeros.
+ * @property-read  string   $microsecond   u - Microseconds with leading zeros.
  * @property-read  string   $month         m - Numeric representation of a month, with leading zeros.
  * @property-read  string   $ordinal       S - English ordinal suffix for the day of the month, 2 characters.
- * @property-read  string   $week          W - Numeric representation of the day of the week.
+ * @property-read  string   $week          W - ISO-8601 week number of year, weeks starting on Monday.
  * @property-read  string   $year          Y - A full numeric representation of a year, 4 digits.
  *
- * @package     Joomla.Platform
- * @subpackage  Date
- * @since       11.1
+ * @since  11.1
  */
 class JDate extends DateTime
 {
@@ -286,7 +289,7 @@ class JDate extends DateTime
 		}
 
 		// If the returned time should not be local use GMT.
-		if ($local == false)
+		if ($local == false && !empty(self::$gmt))
 		{
 			parent::setTimezone(self::$gmt);
 		}
@@ -318,7 +321,7 @@ class JDate extends DateTime
 			}
 		}
 
-		if ($local == false)
+		if ($local == false && !empty($this->tz))
 		{
 			parent::setTimezone($this->tz);
 		}
@@ -335,7 +338,7 @@ class JDate extends DateTime
 	 *
 	 * @since   11.1
 	 */
-	public function getOffsetFromGMT($hours = false)
+	public function getOffsetFromGmt($hours = false)
 	{
 		return (float) $hours ? ($this->tz->getOffset($this) / 3600) : $this->tz->getOffset($this);
 	}
@@ -389,10 +392,12 @@ class JDate extends DateTime
 	 * @return  JDate
 	 *
 	 * @since   11.1
+	 * @note    This method can't be type hinted due to a PHP bug: https://bugs.php.net/bug.php?id=61483
 	 */
 	public function setTimezone($tz)
 	{
 		$this->tz = $tz;
+
 		return parent::setTimezone($tz);
 	}
 
@@ -416,20 +421,21 @@ class JDate extends DateTime
 	 * Gets the date as an SQL datetime string.
 	 *
 	 * @param   boolean          $local  True to return the date string in the local time zone, false to return it in GMT.
-	 * @param   JDatabaseDriver  $dbo    The database driver or null to use JFactory::getDbo()
+	 * @param   JDatabaseDriver  $db     The database driver or null to use JFactory::getDbo()
 	 *
 	 * @return  string     The date string in SQL datetime format.
 	 *
-	 * @link http://dev.mysql.com/doc/refman/5.0/en/datetime.html
+	 * @link    http://dev.mysql.com/doc/refman/5.0/en/datetime.html
 	 * @since   11.4
 	 */
-	public function toSql($local = false, JDatabaseDriver $dbo = null)
+	public function toSql($local = false, JDatabaseDriver $db = null)
 	{
-		if ($dbo === null)
+		if ($db === null)
 		{
-			$dbo = JFactory::getDbo();
+			$db = JFactory::getDbo();
 		}
-		return $this->format($dbo->getDateFormat(), $local, false);
+
+		return $this->format($db->getDateFormat(), $local, false);
 	}
 
 	/**

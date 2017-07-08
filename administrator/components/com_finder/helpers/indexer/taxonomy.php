@@ -3,8 +3,8 @@
  * @package     Joomla.Administrator
  * @subpackage  com_finder
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
@@ -12,9 +12,7 @@ defined('_JEXEC') or die;
 /**
  * Stemmer base class for the Finder indexer package.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_finder
- * @since       2.5
+ * @since  2.5
  */
 class FinderIndexerTaxonomy
 {
@@ -49,18 +47,18 @@ class FinderIndexerTaxonomy
 	public static function addBranch($title, $state = 1, $access = 1)
 	{
 		// Check to see if the branch is in the cache.
-		if (isset(self::$branches[$title]))
+		if (isset(static::$branches[$title]))
 		{
-			return self::$branches[$title]->id;
+			return static::$branches[$title]->id;
 		}
 
 		// Check to see if the branch is in the table.
-		$db = JFactory::getDBO();
-		$query = $db->getQuery(true);
-		$query->select('*');
-		$query->from($db->quoteName('#__finder_taxonomy'));
-		$query->where($db->quoteName('parent_id') . ' = 1');
-		$query->where($db->quoteName('title') . ' = ' . $db->quote($title));
+		$db = JFactory::getDbo();
+		$query = $db->getQuery(true)
+			->select('*')
+			->from($db->quoteName('#__finder_taxonomy'))
+			->where($db->quoteName('parent_id') . ' = 1')
+			->where($db->quoteName('title') . ' = ' . $db->quote($title));
 		$db->setQuery($query);
 
 		// Get the result.
@@ -70,15 +68,18 @@ class FinderIndexerTaxonomy
 		if (!empty($result) && $result->state == $state && $result->access == $access)
 		{
 			// The data matches, add the item to the cache.
-			self::$branches[$title] = $result;
+			static::$branches[$title] = $result;
 
-			return self::$branches[$title]->id;
+			return static::$branches[$title]->id;
 		}
 
-		// The database did not match the input. This could be because the
-		// state has changed or because the branch does not exist. Let's figure
-		// out which case is true and deal with it.
+		/*
+		 * The database did not match the input. This could be because the
+		 * state has changed or because the branch does not exist. Let's figure
+		 * out which case is true and deal with it.
+		 */
 		$branch = new JObject;
+
 		if (empty($result))
 		{
 			// Prepare the branch object.
@@ -99,12 +100,12 @@ class FinderIndexerTaxonomy
 		}
 
 		// Store the branch.
-		self::storeNode($branch);
+		static::storeNode($branch);
 
 		// Add the branch to the cache.
-		self::$branches[$title] = $branch;
+		static::$branches[$title] = $branch;
 
-		return self::$branches[$title]->id;
+		return static::$branches[$title]->id;
 	}
 
 	/**
@@ -123,21 +124,21 @@ class FinderIndexerTaxonomy
 	public static function addNode($branch, $title, $state = 1, $access = 1)
 	{
 		// Check to see if the node is in the cache.
-		if (isset(self::$nodes[$branch][$title]))
+		if (isset(static::$nodes[$branch][$title]))
 		{
-			return self::$nodes[$branch][$title]->id;
+			return static::$nodes[$branch][$title]->id;
 		}
 
 		// Get the branch id, insert it if it does not exist.
-		$branchId = self::addBranch($branch);
+		$branchId = static::addBranch($branch);
 
 		// Check to see if the node is in the table.
-		$db = JFactory::getDBO();
-		$query = $db->getQuery(true);
-		$query->select('*');
-		$query->from($db->quoteName('#__finder_taxonomy'));
-		$query->where($db->quoteName('parent_id') . ' = ' . $db->quote($branchId));
-		$query->where($db->quoteName('title') . ' = ' . $db->quote($title));
+		$db = JFactory::getDbo();
+		$query = $db->getQuery(true)
+			->select('*')
+			->from($db->quoteName('#__finder_taxonomy'))
+			->where($db->quoteName('parent_id') . ' = ' . $db->quote($branchId))
+			->where($db->quoteName('title') . ' = ' . $db->quote($title));
 		$db->setQuery($query);
 
 		// Get the result.
@@ -147,15 +148,18 @@ class FinderIndexerTaxonomy
 		if (!empty($result) && $result->state == $state && $result->access == $access)
 		{
 			// The data matches, add the item to the cache.
-			self::$nodes[$branch][$title] = $result;
+			static::$nodes[$branch][$title] = $result;
 
-			return self::$nodes[$branch][$title]->id;
+			return static::$nodes[$branch][$title]->id;
 		}
 
-		// The database did not match the input. This could be because the
-		// state has changed or because the node does not exist. Let's figure
-		// out which case is true and deal with it.
+		/*
+		 * The database did not match the input. This could be because the
+		 * state has changed or because the node does not exist. Let's figure
+		 * out which case is true and deal with it.
+		 */
 		$node = new JObject;
+
 		if (empty($result))
 		{
 			// Prepare the node object.
@@ -176,12 +180,12 @@ class FinderIndexerTaxonomy
 		}
 
 		// Store the node.
-		self::storeNode($node);
+		static::storeNode($node);
 
 		// Add the node to the cache.
-		self::$nodes[$branch][$title] = $node;
+		static::$nodes[$branch][$title] = $node;
 
-		return self::$nodes[$branch][$title]->id;
+		return static::$nodes[$branch][$title]->id;
 	}
 
 	/**
@@ -198,13 +202,13 @@ class FinderIndexerTaxonomy
 	public static function addMap($linkId, $nodeId)
 	{
 		// Insert the map.
-		$db = JFactory::getDBO();
+		$db = JFactory::getDbo();
 
-		$query = $db->getQuery(true);
-		$query->select($db->quoteName('link_id'));
-		$query->from($db->quoteName('#__finder_taxonomy_map'));
-		$query->where($db->quoteName('link_id') . ' = ' . (int) $linkId);
-		$query->where($db->quoteName('node_id') . ' = ' . (int) $nodeId);
+		$query = $db->getQuery(true)
+			->select($db->quoteName('link_id'))
+			->from($db->quoteName('#__finder_taxonomy_map'))
+			->where($db->quoteName('link_id') . ' = ' . (int) $linkId)
+			->where($db->quoteName('node_id') . ' = ' . (int) $nodeId);
 		$db->setQuery($query);
 		$db->execute();
 		$id = (int) $db->loadResult();
@@ -215,7 +219,7 @@ class FinderIndexerTaxonomy
 
 		if ($id)
 		{
-			$db->updateObject('#__finder_taxonomy_map', $map);
+			$db->updateObject('#__finder_taxonomy_map', $map, array('link_id', 'node_id'));
 		}
 		else
 		{
@@ -235,25 +239,23 @@ class FinderIndexerTaxonomy
 	 */
 	public static function getBranchTitles()
 	{
-		$db = JFactory::getDBO();
+		$db = JFactory::getDbo();
 
 		// Set user variables
-		$user = JFactory::getUser();
-		$groups = implode(',', $user->getAuthorisedViewLevels());
+		$groups = implode(',', JFactory::getUser()->getAuthorisedViewLevels());
 
 		// Create a query to get the taxonomy branch titles.
-		$query = $db->getQuery(true);
-		$query->select($db->quoteName('title'));
-		$query->from($db->quoteName('#__finder_taxonomy'));
-		$query->where($db->quoteName('parent_id') . ' = 1');
-		$query->where($db->quoteName('state') . ' = 1');
-		$query->where($db->quoteName('access') . ' IN (' . $groups . ')');
+		$query = $db->getQuery(true)
+			->select($db->quoteName('title'))
+			->from($db->quoteName('#__finder_taxonomy'))
+			->where($db->quoteName('parent_id') . ' = 1')
+			->where($db->quoteName('state') . ' = 1')
+			->where($db->quoteName('access') . ' IN (' . $groups . ')');
 
 		// Get the branch titles.
 		$db->setQuery($query);
-		$results = $db->loadColumn();
 
-		return $results;
+		return $db->loadColumn();
 	}
 
 	/**
@@ -269,29 +271,27 @@ class FinderIndexerTaxonomy
 	 */
 	public static function getNodeByTitle($branch, $title)
 	{
-		$db = JFactory::getDBO();
+		$db = JFactory::getDbo();
 
 		// Set user variables
-		$user = JFactory::getUser();
-		$groups = implode(',', $user->getAuthorisedViewLevels());
+		$groups = implode(',', JFactory::getUser()->getAuthorisedViewLevels());
 
 		// Create a query to get the node.
-		$query = $db->getQuery(true);
-		$query->select('t1.*');
-		$query->from($db->quoteName('#__finder_taxonomy') . ' AS t1');
-		$query->join('INNER', $db->quoteName('#__finder_taxonomy') . ' AS t2 ON t2.id = t1.parent_id');
-		$query->where($db->quoteName('t1.access') . ' IN (' . $groups . ')');
-		$query->where($db->quoteName('t1.state') . ' = 1');
-		$query->where($db->quoteName('t1.title') . ' LIKE ' . $db->quote($db->escape($title) . '%'));
-		$query->where($db->quoteName('t2.access') . ' IN (' . $groups . ')');
-		$query->where($db->quoteName('t2.state') . ' = 1');
-		$query->where($db->quoteName('t2.title') . ' = ' . $db->quote($branch));
+		$query = $db->getQuery(true)
+			->select('t1.*')
+			->from($db->quoteName('#__finder_taxonomy') . ' AS t1')
+			->join('INNER', $db->quoteName('#__finder_taxonomy') . ' AS t2 ON t2.id = t1.parent_id')
+			->where('t1.access IN (' . $groups . ')')
+			->where('t1.state = 1')
+			->where('t1.title LIKE ' . $db->quote($db->escape($title) . '%'))
+			->where('t2.access IN (' . $groups . ')')
+			->where('t2.state = 1')
+			->where('t2.title = ' . $db->quote($branch));
 
 		// Get the node.
 		$db->setQuery($query, 0, 1);
-		$result = $db->loadObject();
 
-		return $result;
+		return $db->loadObject();
 	}
 
 	/**
@@ -307,11 +307,10 @@ class FinderIndexerTaxonomy
 	public static function removeMaps($linkId)
 	{
 		// Delete the maps.
-		$db = JFactory::getDBO();
-		$query = $db->getQuery(true);
-		$query->delete();
-		$query->from($db->quoteName('#__finder_taxonomy_map'));
-		$query->where($db->quoteName('link_id') . ' = ' . (int) $linkId);
+		$db = JFactory::getDbo();
+		$query = $db->getQuery(true)
+			->delete($db->quoteName('#__finder_taxonomy_map'))
+			->where($db->quoteName('link_id') . ' = ' . (int) $linkId);
 		$db->setQuery($query);
 		$db->execute();
 
@@ -329,12 +328,23 @@ class FinderIndexerTaxonomy
 	public static function removeOrphanNodes()
 	{
 		// Delete all orphaned nodes.
-		$db = JFactory::getDBO();
-		$query = 'DELETE t.*' .
-			' FROM ' . $db->quoteName('#__finder_taxonomy') . ' AS t' .
-			' LEFT JOIN ' . $db->quoteName('#__finder_taxonomy_map') . ' AS m ON m.node_id = t.id' .
-			' WHERE ' . $db->quoteName('t.parent_id') . ' > 1' .
-			' AND ' . $db->quoteName('m.link_id') . ' IS NULL';
+		$db = JFactory::getDbo();
+		$query     = $db->getQuery(true);
+		$subquery  = $db->getQuery(true);
+		$subquery1 = $db->getQuery(true);
+
+		$subquery1->select($db->quoteName('t.id'))
+			->from($db->quoteName('#__finder_taxonomy', 't'))
+			->join('LEFT', $db->quoteName('#__finder_taxonomy_map', 'm') . ' ON ' . $db->quoteName('m.node_id') . '=' . $db->quoteName('t.id'))
+			->where($db->quoteName('t.parent_id') . ' > 1 ')
+			->where($db->quoteName('m.link_id') . ' IS NULL');
+
+		$subquery->select($db->quoteName('id'))
+			->from('(' . $subquery1 . ') temp');
+
+		$query->delete($db->quoteName('#__finder_taxonomy'))
+			->where($db->quoteName('id') . ' IN (' . $subquery . ')');
+
 		$db->setQuery($query);
 		$db->execute();
 
@@ -353,7 +363,7 @@ class FinderIndexerTaxonomy
 	 */
 	protected static function storeNode($item)
 	{
-		$db = JFactory::getDBO();
+		$db = JFactory::getDbo();
 
 		// Check if we are updating or inserting the item.
 		if (empty($item->id))

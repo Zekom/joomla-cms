@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  Toolbar
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Renders a modal window button
  *
- * @package     Joomla.Libraries
- * @subpackage  Toolbar
- * @since       3.0
+ * @since  3.0
  */
 class JToolbarButtonPopup extends JToolbarButton
 {
@@ -38,52 +36,63 @@ class JToolbarButtonPopup extends JToolbarButton
 	 * @param   integer  $left     Left attribute. [@deprecated  Unused, will be removed in 4.0]
 	 * @param   string   $onClose  JavaScript for the onClose event.
 	 * @param   string   $title    The title text
+	 * @param   string   $footer   The footer html
 	 *
 	 * @return  string  HTML string for the button
 	 *
 	 * @since   3.0
 	 */
 	public function fetchButton($type = 'Modal', $name = '', $text = '', $url = '', $width = 640, $height = 480, $top = 0, $left = 0,
-		$onClose = '', $title = '')
+		$onClose = '', $title = '', $footer = null)
 	{
 		// If no $title is set, use the $text element
-		if (strlen($title) == 0)
+		if ($title === '')
 		{
 			$title = $text;
 		}
 
-		$text = JText::_($text);
-		$title = JText::_($title);
-		$class = 'out-2';
-		$doTask = $this->_getCommand($url);
+		// Store all data to the options array for use with JLayout
+		$options = array();
+		$options['name'] = $name;
+		$options['text'] = JText::_($text);
+		$options['title'] = JText::_($title);
+		$options['class'] = $this->fetchIconClass($name);
+		$options['doTask'] = $this->_getCommand($url);
 
-		$html = "<button class=\"btn btn-small modal\" data-toggle=\"modal\" data-target=\"#modal-" . $name . "\">\n";
-		$html .= "<i class=\"icon-" . $class . "\">\n";
-		$html .= "</i>\n";
-		$html .= "$text\n";
+		// Instantiate a new JLayoutFile instance and render the layout
+		$layout = new JLayoutFile('joomla.toolbar.popup');
 
-		$html .= "</button>\n";
+		$html = array();
+		$html[] = $layout->render($options);
+
+		// Place modal div and scripts in a new div
+		$html[] = '<div class="btn-group" style="width: 0; margin: 0">';
 
 		// Build the options array for the modal
 		$params = array();
-		$params['title']  = $title;
-		$params['url']    = $doTask;
+		$params['title']  = $options['title'];
+		$params['url']    = $options['doTask'];
 		$params['height'] = $height;
 		$params['width']  = $width;
-		$html .= JHtml::_('bootstrap.renderModal', 'modal-' . $name, $params);
 
-		// If an $onClose event is passed, add it to the modal JS object
-		if (strlen($onClose) >= 1)
+		if (isset($footer))
 		{
-			$html .= "<script>\n";
-			$html .= "jQuery('#modal-" . $name . "').on('hide', function () {\n";
-			$html .= $onClose . ";\n";
-			$html .= "}";
-			$html .= ");";
-			$html .= "</script>\n";
+			$params['footer'] = $footer;
 		}
 
-		return $html;
+		$html[] = JHtml::_('bootstrap.renderModal', 'modal-' . $name, $params);
+
+		// If an $onClose event is passed, add it to the modal JS object
+		if ($onClose !== '')
+		{
+			$html[] = '<script>'
+				. 'jQuery(\'#modal-' . $name . '\').on(\'hide\', function () {' . $onClose . ';});'
+				. '</script>';
+		}
+
+		$html[] = '</div>';
+
+		return implode("\n", $html);
 	}
 
 	/**
@@ -98,7 +107,7 @@ class JToolbarButtonPopup extends JToolbarButton
 	 */
 	public function fetchId($type, $name)
 	{
-		return $this->_parent->getName() . '-' . "popup-$name";
+		return $this->_parent->getName() . '-popup-' . $name;
 	}
 
 	/**
@@ -112,9 +121,9 @@ class JToolbarButtonPopup extends JToolbarButton
 	 */
 	private function _getCommand($url)
 	{
-		if (substr($url, 0, 4) !== 'http')
+		if (strpos($url, 'http') !== 0)
 		{
-			$url = JURI::base() . $url;
+			$url = JUri::base() . $url;
 		}
 
 		return $url;

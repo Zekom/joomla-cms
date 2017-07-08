@@ -3,7 +3,7 @@
  * @package     Joomla.Site
  * @subpackage  com_contact
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -19,139 +19,71 @@ defined('_JEXEC') or die;
  */
 abstract class ContactHelperRoute
 {
-	protected static $lookup;
 	/**
-	 * @param	int	The route of the newsfeed
+	 * Get the URL route for a contact from a contact ID, contact category ID and language
+	 *
+	 * @param   integer  $id        The id of the contact
+	 * @param   integer  $catid     The id of the contact's category
+	 * @param   mixed    $language  The id of the language being used.
+	 *
+	 * @return  string  The link to the contact
+	 *
+	 * @since   1.5
 	 */
-	public static function getContactRoute($id, $catid)
+	public static function getContactRoute($id, $catid, $language = 0)
 	{
-		$needles = array(
-			'contact'  => array((int) $id)
-		);
-		//Create the link
-		$link = 'index.php?option=com_contact&view=contact&id='. $id;
+		// Create the link
+		$link = 'index.php?option=com_contact&view=contact&id=' . $id;
+
 		if ($catid > 1)
 		{
-			$categories = JCategories::getInstance('Contact');
-			$category = $categories->get($catid);
-			if ($category) {
-				$needles['category'] = array_reverse($category->getPath());
-				$needles['categories'] = $needles['category'];
-				$link .= '&catid='.$catid;
-			}
+			$link .= '&catid=' . $catid;
 		}
 
-		if ($item = self::_findItem($needles)) {
-			$link .= '&Itemid='.$item;
-		}
-		elseif ($item = self::_findItem()) {
-			$link .= '&Itemid='.$item;
+		if ($language && $language !== '*' && JLanguageMultilang::isEnabled())
+		{
+			$link .= '&lang=' . $language;
 		}
 
 		return $link;
 	}
 
-	public static function getCategoryRoute($catid)
+	/**
+	 * Get the URL route for a contact category from a contact category ID and language
+	 *
+	 * @param   mixed  $catid     The id of the contact's category either an integer id or an instance of JCategoryNode
+	 * @param   mixed  $language  The id of the language being used.
+	 *
+	 * @return  string  The link to the contact
+	 *
+	 * @since   1.5
+	 */
+	public static function getCategoryRoute($catid, $language = 0)
 	{
 		if ($catid instanceof JCategoryNode)
 		{
 			$id = $catid->id;
-			$category = $catid;
 		}
 		else
 		{
-			$id = (int) $catid;
-			$category = JCategories::getInstance('Contact')->get($id);
+			$id       = (int) $catid;
 		}
 
-		if($id < 1)
+		if ($id < 1)
 		{
 			$link = '';
 		}
 		else
 		{
-			$needles = array(
-				'category' => array($id)
-			);
+			// Create the link
+			$link = 'index.php?option=com_contact&view=category&id=' . $id;
 
-			if ($item = self::_findItem($needles))
+			if ($language && $language !== '*' && JLanguageMultilang::isEnabled())
 			{
-				$link = 'index.php?Itemid='.$item;
-			}
-			else
-			{
-				//Create the link
-				$link = 'index.php?option=com_contact&view=category&id='.$id;
-				if($category)
-				{
-					$catids = array_reverse($category->getPath());
-					$needles = array(
-						'category' => $catids,
-						'categories' => $catids
-					);
-					if ($item = self::_findItem($needles)) {
-						$link .= '&Itemid='.$item;
-					}
-					elseif ($item = self::_findItem()) {
-						$link .= '&Itemid='.$item;
-					}
-				}
+				$link .= '&lang=' . $language;
 			}
 		}
 
 		return $link;
-	}
-
-	protected static function _findItem($needles = null)
-	{
-		$app		= JFactory::getApplication();
-		$menus		= $app->getMenu('site');
-
-		// Prepare the reverse lookup array.
-		if (self::$lookup === null)
-		{
-			self::$lookup = array();
-
-			$component	= JComponentHelper::getComponent('com_contact');
-			$items		= $menus->getItems('component_id', $component->id);
-			foreach ($items as $item)
-			{
-				if (isset($item->query) && isset($item->query['view']))
-				{
-					$view = $item->query['view'];
-					if (!isset(self::$lookup[$view])) {
-						self::$lookup[$view] = array();
-					}
-					if (isset($item->query['id'])) {
-						self::$lookup[$view][$item->query['id']] = $item->id;
-					}
-				}
-			}
-		}
-
-		if ($needles)
-		{
-			foreach ($needles as $view => $ids)
-			{
-				if (isset(self::$lookup[$view]))
-				{
-					foreach($ids as $id)
-					{
-						if (isset(self::$lookup[$view][(int) $id])) {
-							return self::$lookup[$view][(int) $id];
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			$active = $menus->getActive();
-			if ($active) {
-				return $active->id;
-			}
-		}
-
-		return null;
 	}
 }

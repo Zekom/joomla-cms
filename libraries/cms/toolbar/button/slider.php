@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  Toolbar
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Renders a button to render an HTML element in a slider container
  *
- * @package     Joomla.Libraries
- * @subpackage  Toolbar
- * @since       3.0
+ * @since  3.0
  */
 class JToolbarButtonSlider extends JToolbarButton
 {
@@ -42,21 +40,27 @@ class JToolbarButtonSlider extends JToolbarButton
 	 */
 	public function fetchButton($type = 'Slider', $name = '', $text = '', $url = '', $width = 640, $height = 480, $onClose = '')
 	{
-		JHtml::script('jui/cms.js', false, true);
+		JHtml::_('script', 'jui/cms.js', array('version' => 'auto', 'relative' => true));
 
-		$text = JText::_($text);
-		$class = 'cog';
+		// Store all data to the options array for use with JLayout
+		$options = array();
+		$options['text'] = JText::_($text);
+		$options['name'] = $name;
+		$options['class'] = $this->fetchIconClass($name);
+		$options['onClose'] = '';
+
 		$doTask = $this->_getCommand($url);
+		$options['doTask'] = 'Joomla.setcollapse(\'' . $doTask . '\', \'' . $name . '\', \'' . $height . '\');';
 
-		$html = "<button class=\"btn btn-small\" data-toggle=\"collapse\" data-target=\"#collapse-" . $name . "\" rel=\"{onClose: function() {" . $onClose
-			. "}}\" onClick=\"Joomla.setcollapse('$doTask', '$name', '$height');\">\n";
-		$html .= "<i class=\"icon-$class\">\n";
-		$html .= "</i>\n";
-		$html .= "$text\n";
+		if ($onClose)
+		{
+			$options['onClose'] = ' rel="{onClose: function() {' . $onClose . '}}"';
+		}
 
-		$html .= "</button>\n";
+		// Instantiate a new JLayoutFile instance and render the layout
+		$layout = new JLayoutFile('joomla.toolbar.slider');
 
-		return $html;
+		return $layout->render($options);
 	}
 
 	/**
@@ -71,7 +75,7 @@ class JToolbarButtonSlider extends JToolbarButton
 	 */
 	public function fetchId($type, $name)
 	{
-		return $this->_parent->getName() . '-' . 'slider-' . $name;
+		return $this->_parent->getName() . '-slider-' . $name;
 	}
 
 	/**
@@ -85,9 +89,9 @@ class JToolbarButtonSlider extends JToolbarButton
 	 */
 	private function _getCommand($url)
 	{
-		if (substr($url, 0, 4) !== 'http')
+		if (strpos($url, 'http') !== 0)
 		{
-			$url = JURI::base() . $url;
+			$url = JUri::base() . $url;
 		}
 
 		return $url;

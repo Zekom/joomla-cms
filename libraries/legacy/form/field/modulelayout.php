@@ -3,8 +3,8 @@
  * @package     Joomla.Legacy
  * @subpackage  Form
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -14,9 +14,7 @@ jimport('joomla.filesystem.folder');
 /**
  * Form Field to display a list of the layouts for module display from the module or template overrides.
  *
- * @package     Joomla.Legacy
- * @subpackage  Form
- * @since       11.1
+ * @since  1.6
  */
 class JFormFieldModulelayout extends JFormField
 {
@@ -24,7 +22,7 @@ class JFormFieldModulelayout extends JFormField
 	 * The form field type.
 	 *
 	 * @var    string
-	 * @since  11.1
+	 * @since  1.6
 	 */
 	protected $type = 'ModuleLayout';
 
@@ -33,7 +31,7 @@ class JFormFieldModulelayout extends JFormField
 	 *
 	 * @return  string  The field input.
 	 *
-	 * @since   11.1
+	 * @since   1.6
 	 */
 	protected function getInput()
 	{
@@ -44,6 +42,7 @@ class JFormFieldModulelayout extends JFormField
 		{
 			$clientId = $this->form->getValue('client_id');
 		}
+
 		$clientId = (int) $clientId;
 
 		$client = JApplicationHelper::getClientInfo($clientId);
@@ -63,34 +62,31 @@ class JFormFieldModulelayout extends JFormField
 		$template = preg_replace('#\W#', '', $template);
 
 		// Get the style.
+		$template_style_id = '';
 		if ($this->form instanceof JForm)
 		{
 			$template_style_id = $this->form->getValue('template_style_id');
+			$template_style_id = preg_replace('#\W#', '', $template_style_id);
 		}
-
-		$template_style_id = preg_replace('#\W#', '', $template_style_id);
 
 		// If an extension and view are present build the options.
 		if ($module && $client)
 		{
-
 			// Load language file
 			$lang = JFactory::getLanguage();
-			$lang->load($module . '.sys', $client->path, null, false, false)
-				|| $lang->load($module . '.sys', $client->path . '/modules/' . $module, null, false, false)
-				|| $lang->load($module . '.sys', $client->path, $lang->getDefault(), false, false)
-				|| $lang->load($module . '.sys', $client->path . '/modules/' . $module, $lang->getDefault(), false, false);
+			$lang->load($module . '.sys', $client->path, null, false, true)
+				|| $lang->load($module . '.sys', $client->path . '/modules/' . $module, null, false, true);
 
 			// Get the database object and a new query object.
-			$db = JFactory::getDBO();
+			$db = JFactory::getDbo();
 			$query = $db->getQuery(true);
 
 			// Build the query.
-			$query->select('element, name');
-			$query->from('#__extensions as e');
-			$query->where('e.client_id = ' . (int) $clientId);
-			$query->where('e.type = ' . $db->quote('template'));
-			$query->where('e.enabled = 1');
+			$query->select('element, name')
+				->from('#__extensions as e')
+				->where('e.client_id = ' . (int) $clientId)
+				->where('e.type = ' . $db->quote('template'))
+				->where('e.enabled = 1');
 
 			if ($template)
 			{
@@ -99,8 +95,8 @@ class JFormFieldModulelayout extends JFormField
 
 			if ($template_style_id)
 			{
-				$query->join('LEFT', '#__template_styles as s on s.template=e.element');
-				$query->where('s.id=' . (int) $template_style_id);
+				$query->join('LEFT', '#__template_styles as s on s.template=e.element')
+					->where('s.id=' . (int) $template_style_id);
 			}
 
 			// Set the query and load the templates.
@@ -140,13 +136,8 @@ class JFormFieldModulelayout extends JFormField
 				foreach ($templates as $template)
 				{
 					// Load language file
-					$lang->load('tpl_' . $template->element . '.sys', $client->path, null, false, false)
-						|| $lang->load('tpl_' . $template->element . '.sys', $client->path . '/templates/' . $template->element, null, false, false)
-						|| $lang->load('tpl_' . $template->element . '.sys', $client->path, $lang->getDefault(), false, false)
-						|| $lang->load(
-						'tpl_' . $template->element . '.sys', $client->path . '/templates/' . $template->element, $lang->getDefault(),
-						false, false
-					);
+					$lang->load('tpl_' . $template->element . '.sys', $client->path, null, false, true)
+						|| $lang->load('tpl_' . $template->element . '.sys', $client->path . '/templates/' . $template->element, null, false, true);
 
 					$template_path = JPath::clean($client->path . '/templates/' . $template->element . '/html/' . $module);
 
@@ -184,6 +175,7 @@ class JFormFieldModulelayout extends JFormField
 			}
 			// Compute attributes for the grouped list
 			$attr = $this->element['size'] ? ' size="' . (int) $this->element['size'] . '"' : '';
+			$attr .= $this->element['class'] ? ' class="' . (string) $this->element['class'] . '"' : '';
 
 			// Prepare HTML code
 			$html = array();
@@ -201,7 +193,6 @@ class JFormFieldModulelayout extends JFormField
 		}
 		else
 		{
-
 			return '';
 		}
 	}

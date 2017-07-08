@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_menus
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,9 +12,7 @@ defined('_JEXEC') or die;
 /**
  * Menus component helper.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_menus
- * @since       1.6
+ * @since  1.6
  */
 class MenusHelper
 {
@@ -26,7 +24,11 @@ class MenusHelper
 	/**
 	 * Configure the Linkbar.
 	 *
-	 * @param	string	The name of the active view.
+	 * @param   string  $vName  The name of the active view.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	public static function addSubmenu($vName)
 	{
@@ -45,41 +47,46 @@ class MenusHelper
 	/**
 	 * Gets a list of the actions that can be performed.
 	 *
-	 * @param	int		The menu ID.
+	 * @param   integer  $parentId  The menu ID.
 	 *
-	 * @return	JObject
-	 * @since	1.6
+	 * @return  JObject
+	 *
+	 * @since   1.6
+	 * @deprecated  3.2  Use JHelperContent::getActions() instead
 	 */
 	public static function getActions($parentId = 0)
 	{
-		$user	= JFactory::getUser();
-		$result	= new JObject;
-
-		if (empty($parentId)) {
-			$assetName = 'com_menus';
-		} else {
-			$assetName = 'com_menus.item.'.(int) $parentId;
+		// Log usage of deprecated function
+		try
+		{
+			JLog::add(
+				sprintf('%s() is deprecated. Use JHelperContent::getActions() with new arguments order instead.', __METHOD__),
+				JLog::WARNING,
+				'deprecated'
+			);
+		}
+		catch (RuntimeException $exception)
+		{
+			// Informational log only
 		}
 
-		$actions = JAccess::getActions('com_menus');
-
-		foreach ($actions as $action) {
-			$result->set($action->name,	$user->authorise($action->name, $assetName));
-		}
-
-		return $result;
+		// Get list of actions
+		return JHelperContent::getActions('com_menus');
 	}
 
 	/**
 	 * Gets a standard form of a link for lookups.
 	 *
-	 * @param	mixed	A link string or array of request variables.
+	 * @param   mixed  $request  A link string or array of request variables.
 	 *
-	 * @return	mixed	A link in standard option-view-layout form, or false if the supplied response is invalid.
+	 * @return  mixed  A link in standard option-view-layout form, or false if the supplied response is invalid.
+	 *
+	 * @since   1.6
 	 */
 	public static function getLinkKey($request)
 	{
-		if (empty($request)) {
+		if (empty($request))
+		{
 			return false;
 		}
 
@@ -87,19 +94,23 @@ class MenusHelper
 		if (is_string($request))
 		{
 			$args = array();
-			if (strpos($request, 'index.php') === 0) {
+
+			if (strpos($request, 'index.php') === 0)
+			{
 				parse_str(parse_url(htmlspecialchars_decode($request), PHP_URL_QUERY), $args);
 			}
-			else {
+			else
+			{
 				parse_str($request, $args);
 			}
+
 			$request = $args;
 		}
 
 		// Only take the option, view and layout parts.
 		foreach ($request as $name => $value)
 		{
-			if (!in_array($name, self::$_filter))
+			if ((!in_array($name, self::$_filter)) && (!($name == 'task' && !array_key_exists('view', $request))))
 			{
 				// Remove the variables we want to ignore.
 				unset($request[$name]);
@@ -108,66 +119,115 @@ class MenusHelper
 
 		ksort($request);
 
-		return 'index.php?'.http_build_query($request, '', '&');
+		return 'index.php?' . http_build_query($request, '', '&');
 	}
 
 	/**
 	 * Get the menu list for create a menu module
 	 *
-	 * @return		array	The menu array list
-	 * @since		1.6
+	 * @param   int  $clientId  Optional client id - viz 0 = site, 1 = administrator, can be NULL for all
+	 *
+	 * @return  array  The menu array list
+	 *
+	 * @since    1.6
 	 */
-	public static function getMenuTypes()
+	public static function getMenuTypes($clientId = 0)
 	{
 		$db = JFactory::getDbo();
-		$db->setQuery('SELECT a.menutype FROM #__menu_types AS a');
+		$query = $db->getQuery(true)
+			->select('a.menutype')
+			->from('#__menu_types AS a');
+
+		if (isset($clientId))
+		{
+			$query->where('a.client_id = ' . (int) $clientId);
+		}
+
+		$db->setQuery($query);
+
 		return $db->loadColumn();
 	}
 
 	/**
 	 * Get a list of menu links for one or all menus.
 	 *
-	 * @param	string	An option menu to filter the list on, otherwise all menu links are returned as a grouped array.
-	 * @param	int		An optional parent ID to pivot results around.
-	 * @param	int		An optional mode. If parent ID is set and mode=2, the parent and children are excluded from the list.
-	 * @param	array	An optional array of states
+	 * @param   string   $menuType   An option menu to filter the list on, otherwise all menu with given client id links
+	 *                               are returned as a grouped array.
+	 * @param   integer  $parentId   An optional parent ID to pivot results around.
+	 * @param   integer  $mode       An optional mode. If parent ID is set and mode=2, the parent and children are excluded from the list.
+	 * @param   array    $published  An optional array of states
+	 * @param   array    $languages  Optional array of specify which languages we want to filter
+	 * @param   int      $clientId   Optional client id - viz 0 = site, 1 = administrator, can be NULL for all (used only if menutype not givein)
+	 *
+	 * @return  array
+	 *
+	 * @since   1.6
 	 */
-	public static function getMenuLinks($menuType = null, $parentId = 0, $mode = 0, $published=array(), $languages=array())
+	public static function getMenuLinks($menuType = null, $parentId = 0, $mode = 0, $published = array(), $languages = array(), $clientId = 0)
 	{
 		$db = JFactory::getDbo();
-		$query = $db->getQuery(true);
+		$query = $db->getQuery(true)
+			->select('DISTINCT(a.id) AS value,
+					  a.title AS text,
+					  a.alias,
+					  a.level,
+					  a.menutype,
+					  a.client_id,
+					  a.type,
+					  a.published,
+					  a.template_style_id,
+					  a.checked_out,
+					  a.language,
+					  a.lft')
+			->from('#__menu AS a');
 
-		$query->select('a.id AS value, a.title AS text, a.level, a.menutype, a.type, a.template_style_id, a.checked_out');
-		$query->from('#__menu AS a');
-		$query->join('LEFT', $db->quoteName('#__menu').' AS b ON a.lft > b.lft AND a.rgt < b.rgt');
+		$query->select('e.name as componentname, e.element')
+			->join('left', '#__extensions e ON e.extension_id = a.component_id');
 
-		// Filter by the type
-		if ($menuType) {
-			$query->where('(a.menutype = '.$db->quote($menuType).' OR a.parent_id = 0)');
+		if (JLanguageMultilang::isEnabled())
+		{
+			$query->select('l.title AS language_title, l.image AS language_image, l.sef AS language_sef')
+				->join('LEFT', $db->quoteName('#__languages') . ' AS l ON l.lang_code = a.language');
 		}
 
-		if ($parentId) {
-			if ($mode == 2) {
-				// Prevent the parent and children from showing.
-				$query->join('LEFT', '#__menu AS p ON p.id = '.(int) $parentId);
-				$query->where('(a.lft <= p.lft OR a.rgt >= p.rgt)');
-			}
+		// Filter by the type if given, this is more specific than client id
+		if ($menuType)
+		{
+			$query->where('(a.menutype = ' . $db->quote($menuType) . ' OR a.parent_id = 0)');
+		}
+		elseif (isset($clientId))
+		{
+			$query->where('a.client_id = ' . (int) $clientId);
 		}
 
-		if (!empty($languages)) {
-			if (is_array($languages)) {
+		// Prevent the parent and children from showing if requested.
+		if ($parentId && $mode == 2)
+		{
+			$query->join('LEFT', '#__menu AS p ON p.id = ' . (int) $parentId)
+				->where('(a.lft <= p.lft OR a.rgt >= p.rgt)');
+		}
+
+		if (!empty($languages))
+		{
+			if (is_array($languages))
+			{
 				$languages = '(' . implode(',', array_map(array($db, 'quote'), $languages)) . ')';
 			}
+
 			$query->where('a.language IN ' . $languages);
 		}
 
-		if (!empty($published)) {
-			if (is_array($published)) $published = '(' . implode(',', $published) .')';
+		if (!empty($published))
+		{
+			if (is_array($published))
+			{
+				$published = '(' . implode(',', $published) . ')';
+			}
+
 			$query->where('a.published IN ' . $published);
 		}
 
 		$query->where('a.published != -2');
-		$query->group('a.id, a.title, a.level, a.menutype, a.type, a.template_style_id, a.checked_out, a.lft');
 		$query->order('a.lft ASC');
 
 		// Get the options.
@@ -180,16 +240,24 @@ class MenusHelper
 		catch (RuntimeException $e)
 		{
 			JError::raiseWarning(500, $e->getMessage());
+
 			return false;
 		}
 
-		if (empty($menuType)) {
+		if (empty($menuType))
+		{
 			// If the menutype is empty, group the items by menutype.
-			$query->clear();
-			$query->select('*');
-			$query->from('#__menu_types');
-			$query->where('menutype <> '.$db->quote(''));
-			$query->order('title, menutype');
+			$query->clear()
+				->select('*')
+				->from('#__menu_types')
+				->where('menutype <> ' . $db->quote(''))
+				->order('title, menutype');
+
+			if (isset($clientId))
+			{
+				$query->where('client_id = ' . (int) $clientId);
+			}
+
 			$db->setQuery($query);
 
 			try
@@ -199,20 +267,25 @@ class MenusHelper
 			catch (RuntimeException $e)
 			{
 				JError::raiseWarning(500, $e->getMessage());
+
 				return false;
 			}
 
 			// Create a reverse lookup and aggregate the links.
 			$rlu = array();
-			foreach ($menuTypes as &$type) {
-				$rlu[$type->menutype] = &$type;
+
+			foreach ($menuTypes as &$type)
+			{
+				$rlu[$type->menutype] = & $type;
 				$type->links = array();
 			}
 
 			// Loop through the list of menu links.
-			foreach ($links as &$link) {
-				if (isset($rlu[$link->menutype])) {
-					$rlu[$link->menutype]->links[] = &$link;
+			foreach ($links as &$link)
+			{
+				if (isset($rlu[$link->menutype]))
+				{
+					$rlu[$link->menutype]->links[] = & $link;
 
 					// Cleanup garbage.
 					unset($link->menutype);
@@ -220,36 +293,32 @@ class MenusHelper
 			}
 
 			return $menuTypes;
-		} else {
+		}
+		else
+		{
 			return $links;
 		}
 	}
-	static public function getAssociations($pk)
-	{
-		$associations = array();
-		$db = JFactory::getDbo();
-		$query = $db->getQuery(true);
-		$query->from('#__menu as m');
-		$query->innerJoin('#__associations as a ON a.id=m.id AND a.context='.$db->quote('com_menus.item'));
-		$query->innerJoin('#__associations as a2 ON a.key=a2.key');
-		$query->innerJoin('#__menu as m2 ON a2.id=m2.id');
-		$query->where('m.id=' . (int) $pk);
-		$query->select('m2.language, m2.id');
-		$db->setQuery($query);
 
-		try
+	/**
+	 * Get the associations
+	 *
+	 * @param   integer  $pk  Menu item id
+	 *
+	 * @return  array
+	 *
+	 * @since   3.0
+	 */
+	public static function getAssociations($pk)
+	{
+		$langAssociations = JLanguageAssociations::getAssociations('com_menus', '#__menu', 'com_menus.item', $pk, 'id', '', '');
+		$associations     = array();
+
+		foreach ($langAssociations as $langAssociation)
 		{
-			$menuitems = $db->loadObjectList('language');
+			$associations[$langAssociation->language] = $langAssociation->id;
 		}
-		catch (RuntimeException $e)
-		{
-			JError::raiseWarning(500, $e->getMessage());
-			return false;
-		}
-		foreach ($menuitems as $tag => $item)
-		{
-			$associations[$tag] = $item->id;
-		}
+
 		return $associations;
 	}
 }

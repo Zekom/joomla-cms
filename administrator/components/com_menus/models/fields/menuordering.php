@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_menus
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,19 +12,17 @@ defined('JPATH_BASE') or die;
 JFormHelper::loadFieldClass('list');
 
 /**
- * Form Field class for the Joomla Framework.
+ * Menu Ordering field.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_menus
- * @since       1.6
+ * @since  1.6
  */
 class JFormFieldMenuOrdering extends JFormFieldList
 {
 	/**
 	 * The form field type.
 	 *
-	 * @var		string
-	 * @since	1.7
+	 * @var        string
+	 * @since   1.7
 	 */
 	protected $type = 'MenuOrdering';
 
@@ -32,8 +30,9 @@ class JFormFieldMenuOrdering extends JFormFieldList
 	 * Method to get the list of siblings in a menu.
 	 * The method requires that parent be set.
 	 *
-	 * @return	array	The field option objects or false if the parent field has not been set
-	 * @since	1.7
+	 * @return  array  The field option objects or false if the parent field has not been set
+	 *
+	 * @since   1.7
 	 */
 	protected function getOptions()
 	{
@@ -41,23 +40,27 @@ class JFormFieldMenuOrdering extends JFormFieldList
 
 		// Get the parent
 		$parent_id = $this->form->getValue('parent_id', 0);
-		if ( empty($parent_id))
+
+		if (empty($parent_id))
 		{
 			return false;
 		}
+
 		$db = JFactory::getDbo();
-		$query = $db->getQuery(true);
+		$query = $db->getQuery(true)
+			->select('a.id AS value, a.title AS text, a.client_id AS ' . $db->quoteName('clientId'))
+			->from('#__menu AS a')
 
-		$query->select('a.id AS value, a.title AS text');
-		$query->from('#__menu AS a');
+			->where('a.published >= 0')
+			->where('a.parent_id =' . (int) $parent_id);
 
-		$query->where('a.published >= 0');
-		$query->where('a.parent_id =' . (int) $parent_id);
-		if ($menuType = $this->form->getValue('menutype')) {
-			$query->where('a.menutype = '.$db->quote($menuType));
+		if ($menuType = $this->form->getValue('menutype'))
+		{
+			$query->where('a.menutype = ' . $db->quote($menuType));
 		}
-		else {
-			$query->where('a.menutype != '.$db->quote(''));
+		else
+		{
+			$query->where('a.menutype != ' . $db->quote(''));
 		}
 
 		$query->order('a.lft ASC');
@@ -74,6 +77,15 @@ class JFormFieldMenuOrdering extends JFormFieldList
 			JError::raiseWarning(500, $e->getMessage());
 		}
 
+		// Allow translation of custom admin menus
+		foreach ($options as &$option)
+		{
+			if ($option->clientId != 0)
+			{
+				$option->text = JText::_($option->text);
+			}
+		}
+
 		$options = array_merge(
 			array(array('value' => '-1', 'text' => JText::_('COM_MENUS_ITEM_FIELD_ORDERING_VALUE_FIRST'))),
 			$options,
@@ -85,10 +97,12 @@ class JFormFieldMenuOrdering extends JFormFieldList
 
 		return $options;
 	}
+
 	/**
-	 * Method to get the field input markup
+	 * Method to get the field input markup.
 	 *
 	 * @return  string  The field input markup.
+	 *
 	 * @since   1.7
 	 */
 	protected function getInput()

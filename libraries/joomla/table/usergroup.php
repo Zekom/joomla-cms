@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Table
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * Usergroup table class.
  *
- * @package     Joomla.Platform
- * @subpackage  Table
- * @since       11.1
+ * @since  11.1
  */
 class JTableUsergroup extends JTable
 {
@@ -43,6 +41,7 @@ class JTableUsergroup extends JTable
 		if ((trim($this->title)) == '')
 		{
 			$this->setError(JText::_('JLIB_DATABASE_ERROR_USERGROUP_TITLE'));
+
 			return false;
 		}
 
@@ -60,6 +59,7 @@ class JTableUsergroup extends JTable
 		if ($db->loadResult() > 0)
 		{
 			$this->setError(JText::_('JLIB_DATABASE_ERROR_USERGROUP_TITLE_EXISTS'));
+
 			return false;
 		}
 
@@ -106,7 +106,11 @@ class JTableUsergroup extends JTable
 		$db->setQuery('UPDATE ' . $this->_tbl . ' SET lft=' . (int) $left . ', rgt=' . (int) $right . ' WHERE id=' . (int) $parent_id);
 
 		// If there is an update failure, return false to break out of the recursion
-		if (!$db->execute())
+		try
+		{
+			$db->execute();
+		}
+		catch (JDatabaseExceptionExecuting $e)
 		{
 			return false;
 		}
@@ -152,14 +156,17 @@ class JTableUsergroup extends JTable
 		{
 			$this->load($oid);
 		}
+
 		if ($this->id == 0)
 		{
 			throw new UnexpectedValueException('Global Category not found');
 		}
+
 		if ($this->parent_id == 0)
 		{
 			throw new UnexpectedValueException('Root categories cannot be deleted.');
 		}
+
 		if ($this->lft == 0 || $this->rgt == 0)
 		{
 			throw new UnexpectedValueException('Left-Right data inconsistency. Cannot delete usergroup.');
@@ -168,13 +175,14 @@ class JTableUsergroup extends JTable
 		$db = $this->_db;
 
 		// Select the usergroup ID and its children
-		$query = $db->getQuery(true);
-		$query->select($db->quoteName('c.id'));
-		$query->from($db->quoteName($this->_tbl) . 'AS c');
-		$query->where($db->quoteName('c.lft') . ' >= ' . (int) $this->lft);
-		$query->where($db->quoteName('c.rgt') . ' <= ' . (int) $this->rgt);
+		$query = $db->getQuery(true)
+			->select($db->quoteName('c.id'))
+			->from($db->quoteName($this->_tbl) . 'AS c')
+			->where($db->quoteName('c.lft') . ' >= ' . (int) $this->lft)
+			->where($db->quoteName('c.rgt') . ' <= ' . (int) $this->rgt);
 		$db->setQuery($query);
 		$ids = $db->loadColumn();
+
 		if (empty($ids))
 		{
 			throw new UnexpectedValueException('Left-Right data inconsistency. Cannot delete usergroup.');
@@ -184,32 +192,31 @@ class JTableUsergroup extends JTable
 		// @todo Remove all related threads, posts and subscriptions
 
 		// Delete the usergroup and its children
-		$query->clear();
-		$query->delete();
-		$query->from($db->quoteName($this->_tbl));
-		$query->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+		$query->clear()
+			->delete($db->quoteName($this->_tbl))
+			->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
 		$db->setQuery($query);
 		$db->execute();
 
 		// Delete the usergroup in view levels
 		$replace = array();
+
 		foreach ($ids as $id)
 		{
-			$replace[] = ',' . $db->quote("[$id,") . ',' . $db->quote("[") . ')';
-			$replace[] = ',' . $db->quote(",$id,") . ',' . $db->quote(",") . ')';
-			$replace[] = ',' . $db->quote(",$id]") . ',' . $db->quote("]") . ')';
-			$replace[] = ',' . $db->quote("[$id]") . ',' . $db->quote("[]") . ')';
+			$replace[] = ',' . $db->quote("[$id,") . ',' . $db->quote('[') . ')';
+			$replace[] = ',' . $db->quote(",$id,") . ',' . $db->quote(',') . ')';
+			$replace[] = ',' . $db->quote(",$id]") . ',' . $db->quote(']') . ')';
+			$replace[] = ',' . $db->quote("[$id]") . ',' . $db->quote('[]') . ')';
 		}
 
-		$query->clear();
-
-		// SQLSsrv change. Alternative for regexp
-		$query->select('id, rules');
-		$query->from('#__viewlevels');
+		$query->clear()
+			->select('id, rules')
+			->from('#__viewlevels');
 		$db->setQuery($query);
 		$rules = $db->loadObjectList();
 
 		$match_ids = array();
+
 		foreach ($rules as $rule)
 		{
 			foreach ($ids as $id)
@@ -223,19 +230,18 @@ class JTableUsergroup extends JTable
 
 		if (!empty($match_ids))
 		{
-			$query = $db->getQuery(true);
-			$query->set('rules=' . str_repeat('replace(', 4 * count($ids)) . 'rules' . implode('', $replace));
-			$query->update('#__viewlevels');
-			$query->where('id IN (' . implode(',', $match_ids) . ')');
+			$query->clear()
+				->set('rules=' . str_repeat('replace(', 4 * count($ids)) . 'rules' . implode('', $replace))
+				->update('#__viewlevels')
+				->where('id IN (' . implode(',', $match_ids) . ')');
 			$db->setQuery($query);
 			$db->execute();
 		}
 
 		// Delete the user to usergroup mappings for the group(s) from the database.
-		$query->clear();
-		$query->delete();
-		$query->from($db->quoteName('#__user_usergroup_map'));
-		$query->where($db->quoteName('group_id') . ' IN (' . implode(',', $ids) . ')');
+		$query->clear()
+			->delete($db->quoteName('#__user_usergroup_map'))
+			->where($db->quoteName('group_id') . ' IN (' . implode(',', $ids) . ')');
 		$db->setQuery($query);
 		$db->execute();
 

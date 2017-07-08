@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Environment
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -18,9 +18,7 @@ defined('JPATH_PLATFORM') or die;
  * This class has many influences from the lib/Browser.php code in
  * version 3 of Horde by Chuck Hagenbuch and Jon Parise.
  *
- * @package     Joomla.Platform
- * @subpackage  Environment
- * @since       11.1
+ * @since  11.1
  */
 class JBrowser
 {
@@ -123,7 +121,8 @@ class JBrowser
 		'ViolaBot',
 		'webbandit',
 		'www.almaden.ibm.com/cs/crawler',
-		'ZyBorg');
+		'ZyBorg',
+	);
 
 	/**
 	 * @var    boolean  Is this a mobile browser?
@@ -166,11 +165,11 @@ class JBrowser
 	 * @param   string  $userAgent  The browser string to parse.
 	 * @param   string  $accept     The HTTP_ACCEPT settings to use.
 	 *
-	 * @return JBrowser  The Browser object.
+	 * @return  JBrowser  The Browser object.
 	 *
-	 * @since  11.1
+	 * @since   11.1
 	 */
-	static public function getInstance($userAgent = null, $accept = null)
+	public static function getInstance($userAgent = null, $accept = null)
 	{
 		$signature = serialize(array($userAgent, $accept));
 
@@ -207,6 +206,7 @@ class JBrowser
 		{
 			$this->agent = $userAgent;
 		}
+
 		$this->lowerAgent = strtolower($this->agent);
 
 		// Set our accept string.
@@ -226,13 +226,36 @@ class JBrowser
 		{
 			$this->_setPlatform();
 
-			if (strpos($this->lowerAgent, 'mobileexplorer') !== false
-				|| strpos($this->lowerAgent, 'openwave') !== false
-				|| strpos($this->lowerAgent, 'opera mini') !== false
-				|| strpos($this->lowerAgent, 'opera mobi') !== false
-				|| strpos($this->lowerAgent, 'operamini') !== false)
+			/**
+			 * Determine if mobile. Note: Some Handhelds have their screen resolution in the
+			 * user agent string, which we can use to look for mobile agents.
+			 */
+			if (strpos($this->agent, 'MOT-') !== false
+				|| strpos($this->lowerAgent, 'j-') !== false
+				|| preg_match('/(mobileexplorer|openwave|opera mini|opera mobi|operamini|avantgo|wap|elaine)/i', $this->agent)
+				|| preg_match('/(iPhone|iPod|iPad|Android|Mobile|Phone|BlackBerry|Xiino|Palmscape|palmsource)/i', $this->agent)
+				|| preg_match('/(Nokia|Ericsson|docomo|digital paths|portalmmm|CriOS[\/ ]([0-9.]+))/i', $this->agent)
+				|| preg_match('/(UP|UP.B|UP.L)/', $this->agent)
+				|| preg_match('/; (120x160|240x280|240x320|320x320)\)/', $this->agent))
 			{
 				$this->mobile = true;
+			}
+
+			// We have to check for Edge as the first browser, because Edge has something like:
+			// Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393
+			if (preg_match('|Edge/([0-9.]+)|', $this->agent, $version))
+			{
+				$this->setBrowser('edge');
+
+				if (strpos($version[1], '.') !== false)
+				{
+					list ($this->majorVersion, $this->minorVersion) = explode('.', $version[1]);
+				}
+				else
+				{
+					$this->majorVersion = $version[1];
+					$this->minorVersion = 0;
+				}
 			}
 			elseif (preg_match('|Opera[/ ]([0-9.]+)|', $this->agent, $version))
 			{
@@ -246,12 +269,14 @@ class JBrowser
 					$this->identifyBrowserVersion();
 				}
 			}
-			elseif (preg_match('|Chrome[/ ]([0-9.]+)|', $this->agent, $version))
+
+			// Opera 15+
+			elseif (preg_match('/OPR[\/ ]([0-9.]+)/', $this->agent, $version))
 			{
-				$this->setBrowser('chrome');
+				$this->setBrowser('opera');
 				list ($this->majorVersion, $this->minorVersion) = explode('.', $version[1]);
 			}
-			elseif (preg_match('|CrMo[/ ]([0-9.]+)|', $this->agent, $version))
+			elseif (preg_match('/Chrome[\/ ]([0-9.]+)|CrMo[\/ ]([0-9.]+)|CriOS[\/ ]([0-9.]+)/i', $this->agent, $version))
 			{
 				$this->setBrowser('chrome');
 				list ($this->majorVersion, $this->minorVersion) = explode('.', $version[1]);
@@ -261,11 +286,16 @@ class JBrowser
 				|| strpos($this->lowerAgent, 'digital paths') !== false)
 			{
 				$this->setBrowser('palm');
-				$this->mobile = true;
 			}
-			elseif ((preg_match('|MSIE ([0-9.]+)|', $this->agent, $version)) || (preg_match('|Internet Explorer/([0-9.]+)|', $this->agent, $version)))
+			elseif ((preg_match('/MSIE ([0-9.]+)|Internet Explorer\/([0-9.]+)|Trident\/([0-9.]+)/i', $this->agent, $version)))
 			{
 				$this->setBrowser('msie');
+
+				// Special case for IE 11+
+				if (strpos($version[0], 'Trident') !== false && strpos($version[0], 'rv:') !== false)
+				{
+					preg_match('|rv:([0-9.]+)|', $this->agent, $version);
+				}
 
 				if (strpos($version[1], '.') !== false)
 				{
@@ -276,20 +306,12 @@ class JBrowser
 					$this->majorVersion = $version[1];
 					$this->minorVersion = 0;
 				}
-
-				/* Some Handhelds have their screen resolution in the
-				 * user agent string, which we can use to look for
-				 * mobile agents.
-				 */
-				if (preg_match('/; (120x160|240x280|240x320|320x320)\)/', $this->agent))
-				{
-					$this->mobile = true;
-				}
 			}
 			elseif (preg_match('|amaya/([0-9.]+)|', $this->agent, $version))
 			{
 				$this->setBrowser('amaya');
 				$this->majorVersion = $version[1];
+
 				if (isset($version[2]))
 				{
 					$this->minorVersion = $version[2];
@@ -302,14 +324,14 @@ class JBrowser
 			elseif (strpos($this->lowerAgent, 'avantgo') !== false)
 			{
 				$this->setBrowser('avantgo');
-				$this->mobile = true;
 			}
-			elseif (preg_match('|Konqueror/([0-9]+)|', $this->agent, $version) || preg_match('|Safari/([0-9]+)\.?([0-9]+)?|', $this->agent, $version))
+			elseif (preg_match('|[Kk]onqueror/([0-9]+)|', $this->agent, $version) || preg_match('|Safari/([0-9]+)\.?([0-9]+)?|', $this->agent, $version))
 			{
 				// Konqueror and Apple's Safari both use the KHTML
 				// rendering engine.
 				$this->setBrowser('konqueror');
 				$this->majorVersion = $version[1];
+
 				if (isset($version[2]))
 				{
 					$this->minorVersion = $version[2];
@@ -343,52 +365,42 @@ class JBrowser
 			elseif (strpos($this->agent, 'UP/') !== false || strpos($this->agent, 'UP.B') !== false || strpos($this->agent, 'UP.L') !== false)
 			{
 				$this->setBrowser('up');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->agent, 'Xiino/') !== false)
 			{
 				$this->setBrowser('xiino');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->agent, 'Palmscape/') !== false)
 			{
 				$this->setBrowser('palmscape');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->agent, 'Nokia') !== false)
 			{
 				$this->setBrowser('nokia');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->agent, 'Ericsson') !== false)
 			{
 				$this->setBrowser('ericsson');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->lowerAgent, 'wap') !== false)
 			{
 				$this->setBrowser('wap');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->lowerAgent, 'docomo') !== false || strpos($this->lowerAgent, 'portalmmm') !== false)
 			{
 				$this->setBrowser('imode');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->agent, 'BlackBerry') !== false)
 			{
 				$this->setBrowser('blackberry');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->agent, 'MOT-') !== false)
 			{
 				$this->setBrowser('motorola');
-				$this->mobile = true;
 			}
 			elseif (strpos($this->lowerAgent, 'j-') !== false)
 			{
 				$this->setBrowser('mml');
-				$this->mobile = true;
 			}
 		}
 	}
@@ -436,19 +448,22 @@ class JBrowser
 	 * Set browser version, not by engine version
 	 * Fallback to use when no other method identify the engine version
 	 *
-	 * @return void
+	 * @return  void
+	 *
+	 * @since   11.1
 	 */
 	protected function identifyBrowserVersion()
 	{
 		if (preg_match('|Version[/ ]([0-9.]+)|', $this->agent, $version))
 		{
 			list ($this->majorVersion, $this->minorVersion) = explode('.', $version[1]);
+
 			return;
 		}
+
 		// Can't identify browser version
 		$this->majorVersion = 0;
 		$this->minorVersion = 0;
-		JLog::add("Can't identify browser version. Agent: " . $this->agent, JLog::NOTICE);
 	}
 
 	/**
@@ -482,7 +497,7 @@ class JBrowser
 	 *
 	 * @return  integer  The current browser's major version
 	 *
-	 * @since   11.1.
+	 * @since   11.1
 	 */
 	public function getMajor()
 	{
@@ -541,7 +556,8 @@ class JBrowser
 				return substr($_SERVER['SERVER_PROTOCOL'], $pos + 1);
 			}
 		}
-		return null;
+
+		return;
 	}
 
 	/**
@@ -574,6 +590,7 @@ class JBrowser
 			if (strpos($this->accept, '*/*') !== false)
 			{
 				$wildcard_match = true;
+
 				if ($type != 'image')
 				{
 					return true;
@@ -592,12 +609,12 @@ class JBrowser
 			}
 		}
 
-		if (!$this->hasFeature('images') || ($type != 'image'))
+		if ($type != 'image')
 		{
 			return false;
 		}
 
-		return (in_array($subtype, $this->images));
+		return in_array($subtype, $this->images);
 	}
 
 	/**
@@ -611,7 +628,7 @@ class JBrowser
 	 */
 	public function isBrowser($browser)
 	{
-		return ($this->browser === $browser);
+		return $this->browser === $browser;
 	}
 
 	/**
@@ -630,6 +647,7 @@ class JBrowser
 				return true;
 			}
 		}
+
 		return false;
 	}
 
@@ -651,13 +669,16 @@ class JBrowser
 	 * @return  boolean  True if using SSL, false if not.
 	 *
 	 * @since   11.1
-	 * @deprecated  13.3  Use the isSSLConnection method on the application object.
+	 * @deprecated  13.3 (Platform) & 4.0 (CMS) - Use the isSSLConnection method on the application object.
 	 */
 	public function isSSLConnection()
 	{
-		JLog::add('JBrowser::isSSLConnection() is deprecated. Use the isSSLConnection method on the application object instead.',
-			JLog::WARNING, 'deprecated');
+		JLog::add(
+			'JBrowser::isSSLConnection() is deprecated. Use the isSSLConnection method on the application object instead.',
+			JLog::WARNING,
+			'deprecated'
+		);
 
-		return ((isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on')) || getenv('SSL_PROTOCOL_VERSION'));
+		return (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on')) || getenv('SSL_PROTOCOL_VERSION');
 	}
 }

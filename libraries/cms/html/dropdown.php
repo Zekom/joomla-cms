@@ -3,8 +3,8 @@
  * @package     Joomla.Libraries
  * @subpackage  HTML
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('JPATH_PLATFORM') or die;
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * HTML utility class for building a dropdown menu
  *
- * @package     Joomla.Libraries
- * @subpackage  HTML
- * @since       3.0
+ * @since  3.0
  */
 abstract class JHtmlDropdown
 {
@@ -40,7 +38,7 @@ abstract class JHtmlDropdown
 	public static function init()
 	{
 		// Only load once
-		if (isset(self::$loaded[__METHOD__]))
+		if (isset(static::$loaded[__METHOD__]))
 		{
 			return;
 		}
@@ -60,7 +58,8 @@ abstract class JHtmlDropdown
 						$('.btn-group',$(this)).removeClass('open');
 					});
 
-					contextAction =function (cbId, task) {
+					contextAction =function (cbId, task)
+					{
 						$('input[name=\"cid[]\"]').removeAttr('checked');
 						$('#' + cbId).attr('checked','checked');
 						Joomla.submitbutton(task);
@@ -71,7 +70,8 @@ abstract class JHtmlDropdown
 		);
 
 		// Set static array
-		self::$loaded[__METHOD__] = true;
+		static::$loaded[__METHOD__] = true;
+
 		return;
 	}
 
@@ -85,7 +85,7 @@ abstract class JHtmlDropdown
 	public static function start()
 	{
 		// Only start once
-		if (isset(self::$loaded[__METHOD__]) && self::$loaded[__METHOD__] == true)
+		if (isset(static::$loaded[__METHOD__]) && static::$loaded[__METHOD__] == true)
 		{
 			return;
 		}
@@ -95,8 +95,9 @@ abstract class JHtmlDropdown
 								<span class="caret"></span>
 							</a>
 							<ul class="dropdown-menu">';
-		self::$dropDownList = $dropDownList;
-		self::$loaded[__METHOD__] = true;
+		static::$dropDownList = $dropDownList;
+		static::$loaded[__METHOD__] = true;
+
 		return;
 	}
 
@@ -109,13 +110,13 @@ abstract class JHtmlDropdown
 	 */
 	public static function render()
 	{
-		$dropDownList = self::$dropDownList;
+		$dropDownList  = static::$dropDownList;
 		$dropDownList .= '</ul></div>';
-		self::$dropDownList	= null;
-		self::$loaded['JHtmlDropdown::start'] = false;
+
+		static::$dropDownList = null;
+		static::$loaded['JHtmlDropdown::start'] = false;
 
 		return $dropDownList;
-
 	}
 
 	/**
@@ -131,7 +132,7 @@ abstract class JHtmlDropdown
 	 */
 	public static function edit($id, $prefix = '', $customLink = '')
 	{
-		self::start();
+		static::start();
 
 		if (!$customLink)
 		{
@@ -146,7 +147,8 @@ abstract class JHtmlDropdown
 		$link .= '&task=' . $prefix . 'edit&id=' . $id;
 		$link = JRoute::_($link);
 
-		self::addCustomItem(JText::_('JACTION_EDIT'), $link);
+		static::addCustomItem(JText::_('JACTION_EDIT'), $link);
+
 		return;
 	}
 
@@ -163,7 +165,8 @@ abstract class JHtmlDropdown
 	public static function publish($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'publish';
-		self::addCustomItem(JText::_('JTOOLBAR_PUBLISH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_PUBLISH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -180,7 +183,8 @@ abstract class JHtmlDropdown
 	public static function unpublish($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'unpublish';
-		self::addCustomItem(JText::_('JTOOLBAR_UNPUBLISH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_UNPUBLISH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -197,7 +201,8 @@ abstract class JHtmlDropdown
 	public static function featured($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'featured';
-		self::addCustomItem(JText::_('JFEATURED'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JFEATURED'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -214,7 +219,8 @@ abstract class JHtmlDropdown
 	public static function unfeatured($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'unfeatured';
-		self::addCustomItem(JText::_('JUNFEATURED'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JUNFEATURED'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -231,7 +237,8 @@ abstract class JHtmlDropdown
 	public static function archive($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'archive';
-		self::addCustomItem(JText::_('JTOOLBAR_ARCHIVE'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_ARCHIVE'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -248,7 +255,8 @@ abstract class JHtmlDropdown
 	public static function unarchive($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'unpublish';
-		self::addCustomItem(JText::_('JTOOLBAR_UNARCHIVE'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_UNARCHIVE'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -265,7 +273,8 @@ abstract class JHtmlDropdown
 	public static function trash($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'trash';
-		self::addCustomItem(JText::_('JTOOLBAR_TRASH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_TRASH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -282,7 +291,8 @@ abstract class JHtmlDropdown
 	public static function untrash($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'publish';
-		self::addCustomItem(JText::_('JTOOLBAR_UNTRASH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_UNTRASH'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -299,7 +309,8 @@ abstract class JHtmlDropdown
 	public static function checkin($checkboxId, $prefix = '')
 	{
 		$task = $prefix . 'checkin';
-		self::addCustomItem(JText::_('JTOOLBAR_CHECKIN'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+		static::addCustomItem(JText::_('JTOOLBAR_CHECKIN'), 'javascript:void(0)', 'onclick="contextAction(\'' . $checkboxId . '\', \'' . $task . '\')"');
+
 		return;
 	}
 
@@ -312,7 +323,8 @@ abstract class JHtmlDropdown
 	 */
 	public static function divider()
 	{
-		self::$dropDownList .= '<li class="divider"></li>';
+		static::$dropDownList .= '<li class="divider"></li>';
+
 		return;
 	}
 
@@ -333,7 +345,7 @@ abstract class JHtmlDropdown
 	public static function addCustomItem($label, $link = 'javascript:void(0)', $linkAttributes = '', $className = '', $ajaxLoad = false,
 		$jsCallBackFunc = null)
 	{
-		self::start();
+		static::start();
 
 		if ($ajaxLoad)
 		{
@@ -344,11 +356,12 @@ abstract class JHtmlDropdown
 			$href = ' href = "' . $link . '" ';
 		}
 
-		$dropDownList = self::$dropDownList;
+		$dropDownList = static::$dropDownList;
 		$dropDownList .= '<li class="' . $className . '"><a ' . $linkAttributes . $href . ' >';
 		$dropDownList .= $label;
 		$dropDownList .= '</a></li>';
-		self::$dropDownList = $dropDownList;
+		static::$dropDownList = $dropDownList;
+
 		return;
 	}
 }

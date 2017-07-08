@@ -1,24 +1,22 @@
 <?php
 /**
- * @package     Joomla.Administrator
- * @subpackage  com_modules
+ * @package     Joomla.Libraries
+ * @subpackage  Form
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-defined('JPATH_BASE') or die;
+defined('JPATH_PLATFORM') or die;
 
 JFormHelper::loadFieldClass('list');
 
 /**
- * Form Field class for the Joomla Framework.
+ * Module Tag field.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_modules
- * @since       3.0
+ * @since  3.0
  */
-class JFormFieldModuleTag extends JFormFieldList
+class JFormFieldModuletag extends JFormFieldList
 {
 	/**
 	 * The form field type.
@@ -38,7 +36,7 @@ class JFormFieldModuleTag extends JFormFieldList
 	protected function getOptions()
 	{
 		$options = array();
-		$tags = array('div', 'section', 'aside', 'nav', 'address', 'article');
+		$tags    = array('address', 'article', 'aside', 'details', 'div', 'footer', 'header', 'main', 'nav', 'section', 'summary');
 
 		// Create one new option object for each tag
 		foreach ($tags as $tag)

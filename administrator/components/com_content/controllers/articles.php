@@ -3,29 +3,28 @@
  * @package     Joomla.Administrator
  * @subpackage  com_content
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
+use Joomla\Utilities\ArrayHelper;
+
 /**
  * Articles list controller class.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_content
- * @since       1.6
+ * @since  1.6
  */
 class ContentControllerArticles extends JControllerAdmin
 {
 	/**
 	 * Constructor.
 	 *
-	 * @param	array	$config	An optional associative array of configuration settings.
-
-	 * @return	ContentControllerArticles
-	 * @see		JController
-	 * @since	1.6
+	 * @param   array  $config  An optional associative array of configuration settings.
+	 *
+	 * @see     JControllerLegacy
+	 * @since   1.6
 	 */
 	public function __construct($config = array())
 	{
@@ -38,14 +37,15 @@ class ContentControllerArticles extends JControllerAdmin
 			$this->view_list = 'featured';
 		}
 
-		$this->registerTask('unfeatured',	'featured');
+		$this->registerTask('unfeatured', 'featured');
 	}
 
 	/**
 	 * Method to toggle the featured setting of a list of articles.
 	 *
-	 * @return	void
-	 * @since	1.6
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	public function featured()
 	{
@@ -56,78 +56,70 @@ class ContentControllerArticles extends JControllerAdmin
 		$ids    = $this->input->get('cid', array(), 'array');
 		$values = array('featured' => 1, 'unfeatured' => 0);
 		$task   = $this->getTask();
-		$value  = JArrayHelper::getValue($values, $task, 0, 'int');
+		$value  = ArrayHelper::getValue($values, $task, 0, 'int');
 
 		// Access checks.
 		foreach ($ids as $i => $id)
 		{
-			if (!$user->authorise('core.edit.state', 'com_content.article.'.(int) $id)) {
+			if (!$user->authorise('core.edit.state', 'com_content.article.' . (int) $id))
+			{
 				// Prune items that you can't change.
 				unset($ids[$i]);
 				JError::raiseNotice(403, JText::_('JLIB_APPLICATION_ERROR_EDITSTATE_NOT_PERMITTED'));
 			}
 		}
 
-		if (empty($ids)) {
+		if (empty($ids))
+		{
 			JError::raiseWarning(500, JText::_('JERROR_NO_ITEMS_SELECTED'));
 		}
-		else {
+		else
+		{
 			// Get the model.
+			/** @var ContentModelArticle $model */
 			$model = $this->getModel();
 
 			// Publish the items.
-			if (!$model->featured($ids, $value)) {
+			if (!$model->featured($ids, $value))
+			{
 				JError::raiseWarning(500, $model->getError());
+			}
+
+			if ($value == 1)
+			{
+				$message = JText::plural('COM_CONTENT_N_ITEMS_FEATURED', count($ids));
+			}
+			else
+			{
+				$message = JText::plural('COM_CONTENT_N_ITEMS_UNFEATURED', count($ids));
 			}
 		}
 
-		$this->setRedirect('index.php?option=com_content&view=articles');
+		$view = $this->input->get('view', '');
+
+		if ($view == 'featured')
+		{
+			$this->setRedirect(JRoute::_('index.php?option=com_content&view=featured', false), $message);
+		}
+		else
+		{
+			$this->setRedirect(JRoute::_('index.php?option=com_content&view=articles', false), $message);
+		}
 	}
 
 	/**
 	 * Proxy for getModel.
 	 *
-	 * @param	string	$name	The name of the model.
-	 * @param	string	$prefix	The prefix for the PHP class name.
+	 * @param   string  $name    The model name. Optional.
+	 * @param   string  $prefix  The class prefix. Optional.
+	 * @param   array   $config  The array of possible config values. Optional.
 	 *
-	 * @return	JModel
-	 * @since	1.6
+	 * @return  JModelLegacy
+	 *
+	 * @since   1.6
 	 */
 	public function getModel($name = 'Article', $prefix = 'ContentModel', $config = array('ignore_request' => true))
 	{
-		$model = parent::getModel($name, $prefix, $config);
-
-		return $model;
-	}
-
-	/**
-	 * Method to save the submitted ordering values for records via AJAX.
-	 *
-	 * @return	void
-	 *
-	 * @since   3.0
-	 */
-	public function saveOrderAjax()
-	{
-		$pks = $this->input->post->get('cid', array(), 'array');
-		$order = $this->input->post->get('order', array(), 'array');
-
-		// Sanitize the input
-		JArrayHelper::toInteger($pks);
-		JArrayHelper::toInteger($order);
-
-		// Get the model
-		$model = $this->getModel();
-
-		// Save the ordering
-		$return = $model->saveorder($pks, $order);
-
-		if ($return)
-		{
-			echo "1";
-		}
-
-		// Close the application
-		JFactory::getApplication()->close();
+		return parent::getModel($name, $prefix, $config);
 	}
 }

@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_categories
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,31 +12,33 @@ defined('_JEXEC') or die;
 /**
  * Categories view class for the Category package.
  *
- * @package     Joomla.Administrator
- * @subpackage  com_categories
- * @since       1.6
+ * @since  1.6
  */
 class CategoriesController extends JControllerLegacy
 {
 	/**
-	 * @var		string	The extension for which the categories apply.
-	 * @since	1.6
+	 * The extension for which the categories apply.
+	 *
+	 * @var    string
+	 * @since  1.6
 	 */
 	protected $extension;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param	array An optional associative array of configuration settings.
-	 * @see		JController
-	 * @since	1.6
+	 * @param   array  $config  An optional associative array of configuration settings.
+	 *
+	 * @see     JControllerLegacy
+	 * @since   1.6
 	 */
 	public function __construct($config = array())
 	{
 		parent::__construct($config);
 
 		// Guess the JText message prefix. Defaults to the option.
-		if (empty($this->extension)) {
+		if (empty($this->extension))
+		{
 			$this->extension = $this->input->get('extension', 'com_content');
 		}
 	}
@@ -44,13 +46,14 @@ class CategoriesController extends JControllerLegacy
 	/**
 	 * Method to display a view.
 	 *
-	 * @param	boolean			If true, the view output will be cached
-	 * @param	array			An array of safe url parameters and their variable types, for valid values see {@link JFilterInput::clean()}.
+	 * @param   boolean  $cachable   If true, the view output will be cached
+	 * @param   array    $urlparams  An array of safe URL parameters and their variable types, for valid values see {@link JFilterInput::clean()}.
 	 *
-	 * @return	JController		This object to support chaining.
-	 * @since	1.5
+	 * @return  CategoriesController  This object to support chaining.
+	 *
+	 * @since   1.5
 	 */
-	public function display($cachable = false, $urlparams = false)
+	public function display($cachable = false, $urlparams = array())
 	{
 		// Get the document object.
 		$document = JFactory::getDocument();
@@ -58,21 +61,23 @@ class CategoriesController extends JControllerLegacy
 		// Set the default view name and format from the Request.
 		$vName   = $this->input->get('view', 'categories');
 		$vFormat = $document->getType();
-		$lName   = $this->input->get('layout', 'default');
+		$lName   = $this->input->get('layout', 'default', 'string');
 		$id      = $this->input->getInt('id');
 
 		// Check for edit form.
-		if ($vName == 'category' && $lName == 'edit' && !$this->checkEditId('com_categories.edit.category', $id)) {
+		if ($vName == 'category' && $lName == 'edit' && !$this->checkEditId('com_categories.edit.category', $id))
+		{
 			// Somehow the person just went to the form - we don't allow that.
 			$this->setError(JText::sprintf('JLIB_APPLICATION_ERROR_UNHELD_ID', $id));
 			$this->setMessage($this->getError(), 'error');
-			$this->setRedirect(JRoute::_('index.php?option=com_categories&view=categories&extension='.$this->extension, false));
+			$this->setRedirect(JRoute::_('index.php?option=com_categories&view=categories&extension=' . $this->extension, false));
 
 			return false;
 		}
 
 		// Get and render the view.
-		if ($view = $this->getView($vName, $vFormat)) {
+		if ($view = $this->getView($vName, $vFormat))
+		{
 			// Get the model for the view.
 			$model = $this->getModel($vName, 'CategoriesModel', array('name' => $vName . '.' . substr($this->extension, 4)));
 
@@ -84,7 +89,7 @@ class CategoriesController extends JControllerLegacy
 			$view->document = $document;
 
 			// Load the submenu.
-			require_once JPATH_COMPONENT.'/helpers/categories.php';
+			JLoader::register('CategoriesHelper', JPATH_ADMINISTRATOR . '/components/com_categories/helpers/categories.php');
 
 			CategoriesHelper::addSubmenu($model->getState('filter.extension'));
 			$view->display();

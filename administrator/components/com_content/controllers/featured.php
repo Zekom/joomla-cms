@@ -3,22 +3,27 @@
  * @package     Joomla.Administrator
  * @subpackage  com_content
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
-require_once __DIR__ . '/articles.php';
+JLoader::register('ContentControllerArticles', __DIR__ . '/articles.php');
 
 /**
- * @package     Joomla.Administrator
- * @subpackage  com_content
+ * Featured content controller class.
+ *
+ * @since  1.6
  */
 class ContentControllerFeatured extends ContentControllerArticles
 {
 	/**
-	 * Removes an item
+	 * Removes an item.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
 	public function delete()
 	{
@@ -31,7 +36,7 @@ class ContentControllerFeatured extends ContentControllerArticles
 		// Access checks.
 		foreach ($ids as $i => $id)
 		{
-			if (!$user->authorise('core.delete', 'com_content.article.'.(int) $id))
+			if (!$user->authorise('core.delete', 'com_content.article.' . (int) $id))
 			{
 				// Prune items that you can't delete.
 				unset($ids[$i]);
@@ -39,15 +44,19 @@ class ContentControllerFeatured extends ContentControllerArticles
 			}
 		}
 
-		if (empty($ids)) {
+		if (empty($ids))
+		{
 			JError::raiseWarning(500, JText::_('JERROR_NO_ITEMS_SELECTED'));
 		}
-		else {
+		else
+		{
 			// Get the model.
+			/** @var ContentModelFeature $model */
 			$model = $this->getModel();
 
 			// Remove the items.
-			if (!$model->featured($ids, 0)) {
+			if (!$model->featured($ids, 0))
+			{
 				JError::raiseWarning(500, $model->getError());
 			}
 		}
@@ -58,8 +67,9 @@ class ContentControllerFeatured extends ContentControllerArticles
 	/**
 	 * Method to publish a list of articles.
 	 *
-	 * @return	void
-	 * @since	1.0
+	 * @return  void
+	 *
+	 * @since   1.0
 	 */
 	public function publish()
 	{
@@ -75,44 +85,12 @@ class ContentControllerFeatured extends ContentControllerArticles
 	 * @param   string  $prefix  The class prefix. Optional.
 	 * @param   array   $config  Configuration array for model. Optional.
 	 *
-	 * @return  object  The model.
+	 * @return  JModelLegacy  The model.
 	 *
 	 * @since   1.6
 	 */
 	public function getModel($name = 'Feature', $prefix = 'ContentModel', $config = array('ignore_request' => true))
 	{
-		$model = parent::getModel($name, $prefix, $config);
-		return $model;
-	}
-
-	/**
-	 * Method to save the submitted ordering values for records via AJAX.
-	 *
-	 * @return  void
-	 *
-	 * @since   3.0
-	 */
-	public function saveOrderAjax()
-	{
-		$pks = $this->input->post->get('cid', array(), 'array');
-		$order = $this->input->post->get('order', array(), 'array');
-
-		// Sanitize the input
-		JArrayHelper::toInteger($pks);
-		JArrayHelper::toInteger($order);
-
-		// Get the model
-		$model = $this->getModel();
-
-		// Save the ordering
-		$return = $model->saveorder($pks, $order);
-
-		if ($return)
-		{
-			echo "1";
-		}
-
-		// Close the application
-		JFactory::getApplication()->close();
+		return parent::getModel($name, $prefix, $config);
 	}
 }

@@ -3,18 +3,16 @@
  * @package     Joomla.Libraries
  * @subpackage  HTML
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
- * @license     GNU General Public License version 2 or later; see LICENSE
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-defined('JPATH_BASE') or die;
+defined('JPATH_PLATFORM') or die;
 
 /**
  * Utility class to render a list view sidebar
  *
- * @package     Joomla.Libraries
- * @subpackage  HTML
- * @since       3.0
+ * @since  3.0
  */
 abstract class JHtmlSidebar
 {
@@ -53,18 +51,17 @@ abstract class JHtmlSidebar
 	{
 		// Collect display data
 		$data                 = new stdClass;
-		$data->list           = self::getEntries();
-		$data->filters        = self::getFilters();
-		$data->action         = self::getAction();
+		$data->list           = static::getEntries();
+		$data->filters        = static::getFilters();
+		$data->action         = static::getAction();
 		$data->displayMenu    = count($data->list);
 		$data->displayFilters = count($data->filters);
 		$data->hide           = JFactory::getApplication()->input->getBool('hidemainmenu');
 
 		// Create a layout object and ask it to render the sidebar
 		$layout      = new JLayoutFile('joomla.sidebars.submenu');
-		$sidebarHtml = $layout->render($data);
 
-		return $sidebarHtml;
+		return $layout->render($data);
 	}
 
 	/**
@@ -80,7 +77,7 @@ abstract class JHtmlSidebar
 	 */
 	public static function addEntry($name, $link = '', $active = false)
 	{
-		array_push(self::$entries, array($name, $link, $active));
+		static::$entries[] = array($name, $link, $active);
 	}
 
 	/**
@@ -92,7 +89,7 @@ abstract class JHtmlSidebar
 	 */
 	public static function getEntries()
 	{
-		return self::$entries;
+		return static::$entries;
 	}
 
 	/**
@@ -109,7 +106,7 @@ abstract class JHtmlSidebar
 	 */
 	public static function addFilter($label, $name, $options, $noDefault = false)
 	{
-		array_push(self::$filters, array('label' => $label, 'name' => $name, 'options' => $options, 'noDefault' => $noDefault));
+		static::$filters[] = array('label' => $label, 'name' => $name, 'options' => $options, 'noDefault' => $noDefault);
 	}
 
 	/**
@@ -121,7 +118,7 @@ abstract class JHtmlSidebar
 	 */
 	public static function getFilters()
 	{
-		return self::$filters;
+		return static::$filters;
 	}
 
 	/**
@@ -135,7 +132,7 @@ abstract class JHtmlSidebar
 	 */
 	public static function setAction($action)
 	{
-		self::$action = $action;
+		static::$action = $action;
 	}
 
 	/**
@@ -147,6 +144,6 @@ abstract class JHtmlSidebar
 	 */
 	public static function getAction()
 	{
-		return self::$action;
+		return static::$action;
 	}
 }

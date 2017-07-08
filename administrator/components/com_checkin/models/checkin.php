@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_checkin
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,86 +12,126 @@ defined('_JEXEC') or die;
 /**
  * Checkin Model
  *
- * @package     Joomla.Administrator
- * @subpackage  com_checkin
- * @since       1.6
+ * @since  1.6
  */
 class CheckinModelCheckin extends JModelList
 {
+	/**
+	 * Count of the total items checked out
+	 *
+	 * @var  integer
+	 */
 	protected $total;
 
+	/**
+	 * Unused class variable
+	 *
+	 * @var  object
+	 * @deprecated  4.0
+	 */
 	protected $tables;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param   array  $config  An optional associative array of configuration settings.
+	 *
+	 * @see     JController
+	 * @since   3.5
+	 */
+	public function __construct($config = array())
+	{
+		if (empty($config['filter_fields']))
+		{
+			$config['filter_fields'] = array(
+				'table',
+				'count',
+			);
+		}
+
+		parent::__construct($config);
+	}
 
 	/**
 	 * Method to auto-populate the model state.
 	 *
-	 * Note. Calling getState in this method will result in recursion.
+	 * Note: Calling getState in this method will result in recursion.
 	 *
-	 * @since	1.6
+	 * @param   string  $ordering   An optional ordering field.
+	 * @param   string  $direction  An optional direction (asc|desc).
+	 *
+	 * @return  void
+	 *
+	 * @since   1.6
 	 */
-	protected function populateState($ordering = null, $direction = null)
+	protected function populateState($ordering = 'table', $direction = 'asc')
 	{
-		$search = $this->getUserStateFromRequest($this->context.'.filter.search', 'filter_search');
-		$this->setState('filter.search', $search);
+		$this->setState('filter.search', $this->getUserStateFromRequest($this->context . '.filter.search', 'filter_search'));
 
 		// List state information.
-		parent::populateState('table', 'asc');
+		parent::populateState($ordering, $direction);
 	}
 
 	/**
 	 * Checks in requested tables
 	 *
-	 * @param	array	An array of table names. Optional.
-	 * @return	int		Checked in item count
-	 * @since	1.6
+	 * @param   array  $ids  An array of table names. Optional.
+	 *
+	 * @return  integer  Checked in item count
+	 *
+	 * @since   1.6
 	 */
 	public function checkin($ids = array())
 	{
-		$app		= JFactory::getApplication();
-		$db			= $this->_db;
-		$nullDate	= $db->getNullDate();
+		$db = $this->getDbo();
+		$nullDate = $db->getNullDate();
 
-		if (!is_array($ids)) {
-			return;
+		if (!is_array($ids))
+		{
+			return 0;
 		}
 
-		// this int will hold the checked item count
+		// This int will hold the checked item count.
 		$results = 0;
 
-		foreach ($ids as $tn) {
-			// make sure we get the right tables based on prefix
-			if (stripos($tn, $app->getCfg('dbprefix')) !== 0) {
+		foreach ($ids as $tn)
+		{
+			// Make sure we get the right tables based on prefix.
+			if (stripos($tn, JFactory::getApplication()->get('dbprefix')) !== 0)
+			{
 				continue;
 			}
 
 			$fields = $db->getTableColumns($tn);
 
-			if (!(isset($fields['checked_out']) && isset($fields['checked_out_time']))) {
+			if (!(isset($fields['checked_out']) && isset($fields['checked_out_time'])))
+			{
 				continue;
 			}
 
 			$query = $db->getQuery(true)
 				->update($db->quoteName($tn))
 				->set('checked_out = 0')
-				->set('checked_out_time = '.$db->Quote($nullDate))
+				->set('checked_out_time = ' . $db->quote($nullDate))
 				->where('checked_out > 0');
-			if (isset($fields[$tn]['editor'])) {
-				$query->set('editor = NULL');
-			}
 
 			$db->setQuery($query);
-			if ($db->execute()) {
+
+			if ($db->execute())
+			{
 				$results = $results + $db->getAffectedRows();
 			}
 		}
+
 		return $results;
 	}
 
 	/**
 	 * Get total of tables
 	 *
-	 * @return	int	Total to check-in tables
-	 * @since	1.6
+	 * @return  integer  Total to check-in tables
+	 *
+	 * @since   1.6
 	 */
 	public function getTotal()
 	{
@@ -99,29 +139,31 @@ class CheckinModelCheckin extends JModelList
 		{
 			$this->getItems();
 		}
+
 		return $this->total;
 	}
+
 	/**
 	 * Get tables
 	 *
-	 * @return	array	Checked in table names as keys and checked in item count as values
-	 * @since	1.6
+	 * @return  array  Checked in table names as keys and checked in item count as values.
+	 *
+	 * @since   1.6
 	 */
 	public function getItems()
 	{
 		if (!isset($this->items))
 		{
-			$app    = JFactory::getApplication();
-			$db     = $this->_db;
+			$db     = $this->getDbo();
 			$tables = $db->getTableList();
 
-			// this array will hold table name as key and checked in item count as value
+			// This array will hold table name as key and checked in item count as value.
 			$results = array();
 
 			foreach ($tables as $i => $tn)
 			{
-				// make sure we get the right tables based on prefix
-				if (stripos($tn, $app->getCfg('dbprefix')) !== 0)
+				// Make sure we get the right tables based on prefix.
+				if (stripos($tn, JFactory::getApplication()->get('dbprefix')) !== 0)
 				{
 					unset($tables[$i]);
 					continue;
@@ -141,6 +183,7 @@ class CheckinModelCheckin extends JModelList
 					continue;
 				}
 			}
+
 			foreach ($tables as $tn)
 			{
 				$query = $db->getQuery(true)
@@ -149,36 +192,63 @@ class CheckinModelCheckin extends JModelList
 					->where('checked_out > 0');
 
 				$db->setQuery($query);
-				if ($db->execute()) {
+
+				if ($db->execute())
+				{
 					$results[$tn] = $db->loadResult();
-				} else {
+
+					// Show only tables with items to checkin.
+					if ((int) $results[$tn] === 0)
+					{
+						unset($results[$tn]);
+					}
+				}
+				else
+				{
 					continue;
 				}
 			}
+
 			$this->total = count($results);
+
+			// Order items by table
 			if ($this->getState('list.ordering') == 'table')
 			{
-				if ($this->getState('list.direction') == 'asc')
+				if (strtolower($this->getState('list.direction')) == 'asc')
 				{
 					ksort($results);
 				}
-				else {
+				else
+				{
 					krsort($results);
 				}
 			}
+			// Order items by number of items
 			else
 			{
-				if ($this->getState('list.direction') == 'asc')
+				if (strtolower($this->getState('list.direction')) == 'asc')
 				{
 					asort($results);
 				}
-				else {
+				else
+				{
 					arsort($results);
 				}
 			}
-			$results = array_slice($results, $this->getState('list.start'), $this->getState('list.limit') ? $this->getState('list.limit') : null);
-			$this->items = $results;
+
+			// Pagination
+			$limit = (int) $this->getState('list.limit');
+
+			if ($limit !== 0)
+			{
+				$this->items = array_slice($results, $this->getState('list.start'), $limit);
+			}
+			else
+			{
+				$this->items = $results;
+			}
 		}
+
 		return $this->items;
 	}
 }

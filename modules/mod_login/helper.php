@@ -3,7 +3,7 @@
  * @package     Joomla.Site
  * @subpackage  mod_login
  *
- * @copyright   Copyright (C) 2005 - 2012 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -14,73 +14,65 @@ defined('_JEXEC') or die;
  *
  * @package     Joomla.Site
  * @subpackage  mod_login
+ *
  * @since       1.5
  */
-class modLoginHelper
+class ModLoginHelper
 {
-	public static function getReturnURL($params, $type)
+	/**
+	 * Retrieve the URL where the user should be returned after logging in
+	 *
+	 * @param   \Joomla\Registry\Registry  $params  module parameters
+	 * @param   string                     $type    return type
+	 *
+	 * @return string
+	 */
+	public static function getReturnUrl($params, $type)
 	{
-		$app	= JFactory::getApplication();
-		$router = $app->getRouter();
-		$url = null;
-		if ($itemid = $params->get($type))
-		{
-			$db		= JFactory::getDbo();
-			$query	= $db->getQuery(true);
+		$app  = JFactory::getApplication();
+		$item = $app->getMenu()->getItem($params->get($type));
 
-			$query->select($db->quoteName('link'));
-			$query->from($db->quoteName('#__menu'));
-			$query->where($db->quoteName('published') . '=1');
-			$query->where($db->quoteName('id') . '=' . $db->quote($itemid));
+		// Stay on the same page
+		$url = JUri::getInstance()->toString();
 
-			$db->setQuery($query);
-			if ($link = $db->loadResult()) {
-				if ($router->getMode() == JROUTER_MODE_SEF) {
-					$url = 'index.php?Itemid='.$itemid;
-				}
-				else {
-					$url = $link.'&Itemid='.$itemid;
-				}
-			}
-		}
-		if (!$url)
+		if ($item)
 		{
-			// Stay on the same page
-			$uri = clone JURI::getInstance();
-			$vars = $router->parse($uri);
-			unset($vars['lang']);
-			if ($router->getMode() == JROUTER_MODE_SEF)
+			$lang = '';
+
+			if ($item->language !== '*' && JLanguageMultilang::isEnabled())
 			{
-				if (isset($vars['Itemid']))
-				{
-					$itemid = $vars['Itemid'];
-					$menu = $app->getMenu();
-					$item = $menu->getItem($itemid);
-					unset($vars['Itemid']);
-					if (isset($item) && $vars == $item->query) {
-						$url = 'index.php?Itemid='.$itemid;
-					}
-					else {
-						$url = 'index.php?'.JURI::buildQuery($vars).'&Itemid='.$itemid;
-					}
-				}
-				else
-				{
-					$url = 'index.php?'.JURI::buildQuery($vars);
-				}
+				$lang = '&lang=' . $item->language;
 			}
-			else
-			{
-				$url = 'index.php?'.JURI::buildQuery($vars);
-			}
+
+			$url = 'index.php?Itemid=' . $item->id . $lang;
 		}
 
 		return base64_encode($url);
 	}
 
+	/**
+	 * Returns the current users type
+	 *
+	 * @return string
+	 */
 	public static function getType()
 	{
 		$user = JFactory::getUser();
+
 		return (!$user->get('guest')) ? 'logout' : 'login';
+	}
+
+	/**
+	 * Get list of available two factor methods
+	 *
+	 * @return array
+	 *
+	 * @deprecated  4.0  Use JAuthenticationHelper::getTwoFactorMethods() instead.
+	 */
+	public static function getTwoFactorMethods()
+	{
+		JLog::add(__METHOD__ . ' is deprecated, use JAuthenticationHelper::getTwoFactorMethods() instead.', JLog::WARNING, 'deprecated');
+
+		return JAuthenticationHelper::getTwoFactorMethods();
 	}
 }
